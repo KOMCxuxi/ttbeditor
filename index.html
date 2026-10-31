@@ -4,23 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>課表 → Apple 行事曆</title>
-<!--
-  ============================================================
-  課表 → Apple 行事曆（單檔應用，完整原始碼就是這個檔案）
-  ============================================================
-  使用方式：用瀏覽器直接開啟，不需要伺服器、不需要安裝。
-  技術：純 HTML + CSS + 原生 JavaScript。
-  選用外部依賴（只有 OCR / PDF 需要）：
-    - tesseract.js  圖片文字辨識（本機執行）
-    - pdf.js        讀取 PDF 文字層
-  所有資料僅存在瀏覽器 localStorage，不會上傳到任何伺服器。
-
-  各門課的第一堂：
-    每門課都有 firstDate（第一堂日期）。沒設定時，
-    預設為「學期第一週該星期的那一天」。
-    之後依 freq（每週 / 兩週一次）從 firstDate 往後推。
-  ============================================================
--->
+<!-- 單檔應用，完整原始碼即本檔案 -->
 <style>
 *{box-sizing:border-box}
 :root{--bg:#f5f5f7;--card:#fff;--ink:#1d1d1f;--muted:#6e6e73;--line:#e3e3e8;
@@ -60,15 +44,18 @@ button.btn.ghost:hover{border-color:#c9c9cf;background:#fafafc}
 button.btn.danger{color:var(--bad)}
 button.btn.primary{padding:12px 20px;font-size:14.5px}
 button.btn.sm{font-size:12px;padding:6px 10px}
+button.btn.on{background:#eef5ff;border-color:#b9d2f6;color:#0b3d7a}
 a.btn{cursor:pointer}
 .hidden{display:none !important}
 .progress{margin-top:14px}
 .bar{height:6px;background:#ececf0;border-radius:99px;overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--blue);transition:width .25s}
 .plog{font-size:11.5px;color:var(--muted);margin-top:6px;font-family:ui-monospace,Menlo,monospace;
-max-height:110px;overflow:auto;white-space:pre-wrap;line-height:1.5}
+max-height:140px;overflow:auto;white-space:pre-wrap;line-height:1.5}
 textarea{width:100%;font:inherit;font-size:13px;padding:10px;border:1px solid var(--line);border-radius:10px;
 resize:vertical;font-family:ui-monospace,Menlo,monospace}
+pre.raw{margin-top:10px;background:#1d1d1f;color:#cfcfcf;border-radius:10px;padding:12px;font-size:10.5px;
+max-height:320px;overflow:auto;white-space:pre;line-height:1.55;font-family:ui-monospace,Menlo,monospace}
 .toolbar{display:flex;gap:8px;margin:10px 0 12px;flex-wrap:wrap}
 .tgrid-wrap{overflow:auto;max-height:66vh;border:1px solid var(--line);border-radius:12px;background:#fff}
 .tgrid-head{display:grid;grid-template-columns:56px repeat(7,minmax(88px,1fr));position:sticky;top:0;z-index:6;
@@ -91,6 +78,27 @@ box-shadow:0 1px 2px rgba(0,0,0,.05)}
 .blk.sel{outline:2px solid var(--blue);z-index:4;box-shadow:0 4px 14px rgba(0,113,227,.25)}
 .blk b{display:block;font-weight:700;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .blk span{display:block;font-size:9.5px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ===== 清單：用 CSS Grid，唔用 table ===== */
+.lwrap{overflow:auto;max-height:66vh;border:1px solid var(--line);border-radius:12px;background:#fff}
+.lhead,.lrow{display:grid;grid-template-columns:78px 104px minmax(0,1fr) 140px 84px 34px;
+gap:10px;align-items:start;padding:9px 12px}
+.lhead{position:sticky;top:0;z-index:2;background:#fbfbfd;border-bottom:1px solid var(--line);
+font-size:11.5px;color:var(--muted);font-weight:700}
+.lrow{border-bottom:1px solid #f2f2f5;font-size:12.5px;line-height:1.45;cursor:pointer}
+.lrow:hover{background:#f7faff}
+.lrow.sel{background:#eef5ff}
+.lrow .c1{white-space:nowrap;font-weight:700}
+.lrow .c2{white-space:nowrap}
+.lrow .mu{color:var(--muted);font-size:11.5px;font-weight:400}
+.lrow .c3 b{display:block;font-weight:650;overflow-wrap:anywhere}
+.lrow .del{color:var(--bad);cursor:pointer;font-weight:700;text-align:center}
+.lrow.empty{display:block;padding:24px;text-align:center;color:#6e6e73;cursor:default}
+@media(max-width:760px){
+  .lhead,.lrow{grid-template-columns:64px 88px minmax(0,1fr) 30px;gap:8px}
+  .lhead .hide-sm,.lrow .hide-sm{display:none}
+}
+
 .editor{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fbfbfd}
 .ed-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .ed-grid label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--muted);font-weight:600}
@@ -132,7 +140,7 @@ padding:10px 12px;line-height:1.75}
 .summary .srow{display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid #f2f2f5;font-size:12.5px;
 align-items:baseline}
 .summary .srow:last-child{border-bottom:none}
-.summary .sc{font-weight:700;min-width:96px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+.summary .sc{font-weight:700;min-width:92px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
 .summary .st{flex:1}
 .summary .sm{color:var(--muted);font-size:11.5px;white-space:nowrap;text-align:right}
 pre.ics{margin-top:12px;background:#1d1d1f;color:#d6d6d6;padding:14px;border-radius:12px;font-size:11px;
@@ -150,12 +158,12 @@ footer{text-align:center;color:#9a9aa0;font-size:11.5px;margin-top:28px;line-hei
 @media print{
   @page{size:A4 landscape;margin:8mm}
   body{background:#fff;padding:0;margin:0}
-  #step1,#step3,#step4,.stepper,h1,.sub,footer,#errBar{display:none!important}
+  #step1,#step3,#step4,.stepper,h1,.sub,footer,#errBar,.lwrap{display:none!important}
   #step2{border:none;box-shadow:none;padding:0;margin:0;background:#fff}
   #step2 .toolbar,#step2 .hint,#step2 .card-h,#editor{display:none!important}
   .print-only{display:block!important}
-  .tgrid-wrap{max-height:none!important;overflow:visible!important;border:1px solid #999!important;
-  border-radius:0!important}
+  .tgrid-wrap{display:block!important;max-height:none!important;overflow:visible!important;
+  border:1px solid #999!important;border-radius:0!important}
   .tgrid-head{position:static!important}
   .blk{box-shadow:none!important}
   body.printing .blk{font-size:8px;padding:1px 3px;border-radius:4px}
@@ -178,29 +186,37 @@ footer{text-align:center;color:#9a9aa0;font-size:11.5px;margin-top:28px;line-hei
     <button data-goto="step4">4 · 匯出</button>
   </nav>
 
-  <!-- ===== 1 ===== -->
   <section class="card" id="step1">
     <div class="card-h"><span class="num">1</span><h2>上傳課表</h2></div>
 
     <div class="dz" id="dz">
       <div class="dz-ico">📄</div>
       <p><b>把課表圖片或 PDF 拖進來</b>，或點這裡選擇檔案</p>
-      <p class="hint">支援 JPG / PNG / PDF。圖片只在你這台裝置上處理，不會上傳到任何伺服器。</p>
+      <p class="hint">圖片會先放大 2–4 倍並加白邊，再橫向切列辨識。</p>
       <input type="file" id="file" accept="image/*,application/pdf" hidden>
     </div>
 
     <div class="row">
-      <button class="btn ghost" id="btnDemo">載入我的課表示例（8 門課）</button>
-      <button class="btn ghost" id="btnPaste">貼上文字版課表</button>
+      <button class="btn ghost" id="btnDemo">載入週課表示例（8 門課）</button>
+      <button class="btn ghost" id="btnDemoSession">載入日期式課表示例（9 堂）</button>
+      <button class="btn ghost" id="btnPaste">貼上文字版課表（最準）</button>
+      <button class="btn ghost" id="btnRaw">顯示橫列重組結果</button>
+    </div>
+
+    <div class="hint" style="margin-top:10px">
+      💡 「顯示橫列重組結果」會列出 OCR 抓到的<b>每一個水平列</b>（左邊是該列的 Y 座標），
+      可以確認程式有沒有正確把同一行的字歸在一起。
     </div>
 
     <div id="readyTag" class="hidden">✅ 程式已就緒</div>
 
     <div id="pasteBox" class="hidden" style="margin-top:12px">
-      <textarea id="pasteText" rows="7" placeholder="直接從課程系統複製貼上，一行一門課，例如：
-ENG211.046  ENGLISH WRITING (1)  CHAN,MARIA  Friday  09:10am  11:50am  113"></textarea>
+      <textarea id="pasteText" rows="8" placeholder="整段貼上即可（Tab、多空格、多行都可以）：
+1	Sep 01, 2026 (Tuesday)	11:00	13:00	Lecture	Anatomy of Respiratory System	Dr. Lauren Sahd	HKJC-1A"></textarea>
       <div class="row"><button class="btn" id="btnParseText">解析這段文字</button></div>
     </div>
+
+    <pre class="raw hidden" id="rawText"></pre>
 
     <div class="progress hidden" id="progWrap">
       <div class="bar"><i id="progBar"></i></div>
@@ -208,15 +224,16 @@ ENG211.046  ENGLISH WRITING (1)  CHAN,MARIA  Friday  09:10am  11:50am  113"></te
     </div>
   </section>
 
-  <!-- ===== 2 ===== -->
   <section class="card" id="step2">
     <div class="card-h"><span class="num">2</span><h2>校對時間表</h2><span class="badge" id="cntBadge">0 項</span></div>
-    <p class="hint">點格子可修改內容；也可以直接<b>拖曳格子</b>移動時間或換星期。每門課都能設定「每週／兩週一次」，以及<b>這門課的第一堂是哪一天</b>。</p>
+    <p class="hint">日期式的課表建議用<b>清單</b>；固定星期幾的課用<b>格子</b>。點任何一行即可編輯。</p>
 
     <div class="toolbar">
+      <button class="btn ghost" id="btnViewGrid">🗓 格子</button>
+      <button class="btn ghost" id="btnViewList">📋 清單</button>
       <button class="btn ghost" id="btnAdd">＋ 新增課程（重複）</button>
       <button class="btn ghost" id="btnAddEvent">＋ 新增單次行程</button>
-      <button class="btn ghost" id="btnPrint">🖨 列印課表</button>
+      <button class="btn ghost" id="btnPrint">🖨 列印</button>
       <button class="btn ghost danger" id="btnClear">清空全部</button>
     </div>
 
@@ -225,18 +242,26 @@ ENG211.046  ENGLISH WRITING (1)  CHAN,MARIA  Friday  09:10am  11:50am  113"></te
       <div style="font-size:11px;color:#555" id="printSub"></div>
     </div>
 
-    <div class="tgrid-wrap">
+    <div class="tgrid-wrap" id="gridWrap">
       <div class="tgrid-head" id="gridHead"></div>
       <div class="tgrid-body" id="gridBody"></div>
+    </div>
+
+    <div class="lwrap hidden" id="listWrap">
+      <div class="lhead">
+        <div>日期</div><div>時間</div><div>課程／內容</div>
+        <div class="hide-sm">老師</div><div class="hide-sm">地點</div><div></div>
+      </div>
+      <div id="listBody"></div>
     </div>
 
     <div id="editor" class="editor hidden">
       <div class="ed-kind" id="edKind">課程</div>
       <div class="ed-grid">
-        <label>課程代碼<input id="eCode" placeholder="ENG211.046"></label>
-        <label class="span2">課名／行程名稱<input id="eTitle" placeholder="ENGLISH WRITING (1)"></label>
-        <label>老師／備註<input id="eLect" placeholder="CHAN,MARIA"></label>
-        <label>地點<input id="eRoom" placeholder="113"></label>
+        <label>類型／代碼<input id="eCode" placeholder="Lecture / ENG211.046"></label>
+        <label class="span2">課名／行程名稱<input id="eTitle" placeholder="PBL: COPD"></label>
+        <label>老師／備註<input id="eLect" placeholder="Ms Jody Chu"></label>
+        <label>地點<input id="eRoom" placeholder="TR15"></label>
         <label id="wDay">星期
           <select id="eDay">
             <option value="0">週一</option><option value="1">週二</option><option value="2">週三</option>
@@ -290,7 +315,6 @@ ENG211.046  ENGLISH WRITING (1)  CHAN,MARIA  Friday  09:10am  11:50am  113"></te
     </div>
   </section>
 
-  <!-- ===== 3 ===== -->
   <section class="card" id="step3">
     <div class="card-h"><span class="num">3</span><h2>學期設定與停課日</h2></div>
 
@@ -332,7 +356,7 @@ ENG211.046  ENGLISH WRITING (1)  CHAN,MARIA  Friday  09:10am  11:50am  113"></te
         <button class="btn ghost sm" id="btnNoneHoli">全不選</button>
         <a class="btn ghost sm" href="https://www.gov.hk/tc/about/abouthk/holiday/" target="_blank" rel="noopener">🔗 政府公眾假期網頁</a>
       </div>
-      <p class="hint">打勾的日子，<b>所有課程在該天都會被跳過</b>（ICS 會寫入 EXDATE）。學校不放假或該日照常上課，把勾取消即可。</p>
+      <p class="hint">打勾的日子，<b>週模式的課程</b>在該天會自動跳過。日期式課表本身逐堂列出，不受影響。</p>
       <div class="chips" id="holiChips"></div>
       <div class="hint" id="holiStatus"></div>
       <div class="row">
@@ -344,7 +368,6 @@ ENG211.046  ENGLISH WRITING (1)  CHAN,MARIA  Friday  09:10am  11:50am  113"></te
     </div>
   </section>
 
-  <!-- ===== 4 ===== -->
   <section class="card" id="step4">
     <div class="card-h"><span class="num">4</span><h2>匯出到 Apple 行事曆</h2></div>
 
@@ -366,18 +389,15 @@ ENG211.046  ENGLISH WRITING (1)  CHAN,MARIA  Friday  09:10am  11:50am  113"></te
 
     <div class="subblock">
       <div class="sub-h"><h3>已經匯入過？先做這一步</h3></div>
-      <p class="hint">行事曆不會自動比對新舊資料，所以<b>重新匯入前</b>請先清掉舊的：
-      <br>① 開啟「行事曆」App → 點下方的「行事曆」清單
-      <br>② 找到「<b>我的課表</b>」→ 點 ⓘ → 選擇「刪除行事曆」
-      <br>③ 再匯入這份新的 .ics</p>
-      <p class="hint">每筆行程的 UID 固定不變，所以在同一部裝置、同一個行事曆重新匯入時，Apple 通常會更新而不是新增。</p>
+      <p class="hint">① 行事曆 App → 下方「行事曆」清單
+      <br>② 找到「<b>我的課表</b>」→ ⓘ → 刪除行事曆
+      <br>③ 再匯入新的 .ics</p>
     </div>
   </section>
 
   <footer>
-    所有資料都只留在你的瀏覽器（localStorage）。<br>
-    ICS 依 RFC 5545 產生，適用 Apple 行事曆、Google 行事曆、Outlook。<br>
-    本檔案即完整原始碼（單一 HTML，無需建置）。
+    所有資料只留在你的瀏覽器（localStorage）。<br>
+    ICS 依 RFC 5545 產生，適用 Apple 行事曆、Google 行事曆、Outlook。
   </footer>
 
 </div>
@@ -394,10 +414,16 @@ function showFatal(msg) {
   b.style.cursor = 'pointer';
   b.onclick = () => b.classList.add('hidden');
 }
-window.addEventListener('error', e => showFatal(e.message || '未知錯誤'));
+window.addEventListener('error', e => {
+  const m = e && e.message ? String(e.message) : '';
+  if (!m || /^script error\.?$/i.test(m)) return;   /* 跨網域資源的雜訊，不影響功能 */
+  showFatal(m);
+});
 window.addEventListener('unhandledrejection', e => {
   const r = e.reason;
-  showFatal((r && r.message) ? r.message : String(r));
+  const m = (r && r.message) ? String(r.message) : String(r);
+  if (/^script error\.?$/i.test(m)) return;
+  showFatal(m);
 });
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -453,6 +479,7 @@ function daysBetweenYmd(a, b) {
 function fmtMin(m) { m = ((m % 1440) + 1440) % 1440; return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`; }
 function minOf(hhmm) { const [h, m] = String(hhmm || '').split(':').map(Number); return (h || 0) * 60 + (m || 0); }
 function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return String(h); }
+function mmdd(s) { return s ? s.slice(5).replace('-', '/') : ''; }
 
 function loadScript(urls) {
   urls = Array.isArray(urls) ? urls : [urls];
@@ -467,7 +494,6 @@ function loadScript(urls) {
   });
   return tryNext();
 }
-
 function fetchTimeout(url, ms) {
   return new Promise((resolve, reject) => {
     let done = false;
@@ -488,59 +514,50 @@ function fetchTimeout(url, ms) {
    2. 狀態
    ========================================================= */
 let seq = 1;
+let lastRawText = '';
 const state = {
-  courses: [],
-  selected: null,
+  courses: [], selected: null, view: 'grid',
   semester: { start: '', end: '', autoEnd: true, tz: 'Asia/Hong_Kong' },
   settings: { remindMin: 15, futureOnly: true },
-  holidays: [],
-  exportSeq: 0,
-  lastExport: null
+  holidays: [], exportSeq: 0, lastExport: null
 };
 const KEY2 = 'timetable2cal.v2';
-const KEY1 = 'timetable2cal.v1';
 
 function mkCourse(p) {
   p = p || {};
   return {
     id: p.id || ('c' + (seq++)),
     kind: p.kind === 'event' ? 'event' : 'class',
-    code: p.code || '',
-    title: p.title || '',
-    lecturer: p.lecturer || '',
-    room: p.room || '',
+    code: p.code || '', title: p.title || '', lecturer: p.lecturer || '', room: p.room || '',
     day: (typeof p.day === 'number' && p.day >= 0 && p.day <= 6) ? p.day : 0,
-    date: p.date || '',                 /* 單次行程用 */
-    firstDate: p.firstDate || '',       /* 這門課的第一堂日期 */
+    date: p.date || '', firstDate: p.firstDate || '',
     start: typeof p.start === 'number' ? p.start : 540,
     end: typeof p.end === 'number' ? p.end : 600,
     freq: p.freq === 'biweekly' ? 'biweekly' : 'weekly',
-    biweek: p.biweek === 2 ? 2 : 1,     /* 舊版相容用 */
+    biweek: p.biweek === 2 ? 2 : 1,
     remind: typeof p.remind === 'number' ? p.remind : null,
     skip: Array.isArray(p.skip) ? p.skip.slice() : []
   };
 }
-
 function save() {
   try {
     localStorage.setItem(KEY2, JSON.stringify({
-      courses: state.courses, semester: state.semester, settings: state.settings,
-      holidays: state.holidays, exportSeq: state.exportSeq, lastExport: state.lastExport, seq
+      courses: state.courses, view: state.view, semester: state.semester,
+      settings: state.settings, holidays: state.holidays,
+      exportSeq: state.exportSeq, lastExport: state.lastExport, seq
     }));
   } catch (e) { console.warn('儲存失敗', e); }
 }
-
 function restore() {
   try {
-    let raw = localStorage.getItem(KEY2);
-    let legacy = false;
-    if (!raw) { raw = localStorage.getItem(KEY1); legacy = !!raw; }
+    const raw = localStorage.getItem(KEY2);
     if (!raw) return false;
     const o = JSON.parse(raw);
     if (!o || !Array.isArray(o.courses)) return false;
     state.courses = o.courses.map(mkCourse);
     if (o.semester) Object.assign(state.semester, o.semester);
     if (o.settings) Object.assign(state.settings, o.settings);
+    if (o.view === 'list' || o.view === 'grid') state.view = o.view;
     if (Array.isArray(o.holidays)) {
       state.holidays = o.holidays.map(h => ({
         date: h.date, name: h.name || '', off: h.off !== false, src: h.src || 'hk'
@@ -549,12 +566,9 @@ function restore() {
     state.exportSeq = o.exportSeq || 0;
     state.lastExport = o.lastExport || null;
     seq = o.seq || (state.courses.length + 1);
-
-    /* 有 firstDate 的課，星期一律以該日期為準 */
     state.courses.forEach(c => {
       if (c.kind !== 'event' && parseYMD(c.firstDate)) c.day = dowMonOfYmd(c.firstDate);
     });
-    if (legacy) console.log('已從舊版資料升級');
     return true;
   } catch (e) { console.warn('讀取存檔失敗', e); return false; }
 }
@@ -572,16 +586,52 @@ const DEMO = [
   { code: 'SW241.002', title: 'SW INTERVENTION III - MACRO PRACTICE', lecturer: 'CHUNG,YK', day: 1, start: '12:55', end: '14:40', room: 'RLB502' },
   { code: 'SW241T.004', title: 'SW INTERVENTION III - MACRO PRACTICE', lecturer: 'CHUNG,YK', day: 4, start: '13:50', end: '15:35', room: 'LG401' }
 ];
+const DEMO_SESSIONS = [
+  { date: '2026-11-03', start: '11:30', end: '13:30', code: 'PBL', title: 'PBL: COPD', lecturer: 'Ms Jody Chu (Gp1); Dr. May Lam (Gp2)', room: 'TR15' },
+  { date: '2026-11-09', start: '14:30', end: '17:30', code: 'PCP', title: 'PCP Recruitment (Group B of BPHM2133 Practical)', lecturer: 'TBC', room: 'TBC' },
+  { date: '2026-11-10', start: '09:00', end: '10:50', code: 'Lecture', title: 'Bronchitis + Debriefing (Class Test and PBL)', lecturer: 'Ms Louise Sin', room: 'HKJC-S3' },
+  { date: '2026-11-10', start: '11:00', end: '12:50', code: 'Lecture', title: 'Introduction to systems in HA', lecturer: 'Ms Louise Sin, Mr. Vincent Wong', room: 'HKJC-S3' },
+  { date: '2026-11-17', start: '09:00', end: '10:50', code: 'Lecture', title: 'Glaucoma', lecturer: 'Ms Louise Sin', room: 'SR3' },
+  { date: '2026-11-20', start: '14:30', end: '17:30', code: 'Ward Visit', title: 'Ward Visit', lecturer: 'Dr. Janice Tam; Ms. Eliza Tam; Ms. Louise Sin', room: 'SR4' },
+  { date: '2026-11-24', start: '15:00', end: '16:50', code: 'Lecture', title: 'TCM respiratory med: cough / sneezing / sputum / runny nose', lecturer: 'Dr. Fan Cheung', room: 'LE3' },
+  { date: '2026-11-27', start: '14:00', end: '15:50', code: 'Presentation', title: 'Ward Visit Presentation (Group 1 & 2)', lecturer: 'Dr. Ann Leung, Dr. Janice Tam', room: 'HKJC-S1A' },
+  { date: '2026-11-27', start: '16:00', end: '17:50', code: 'Lecture', title: 'Revision & Course Evaluation', lecturer: 'Ms. Louise Sin, Dr. Willmann Liang', room: 'HKJC-S1A' }
+];
 
 /* =========================================================
-   4. 文字解析
+   4. 共用規則
    ========================================================= */
 const CODE_RE = /^[A-Z]{2,4}\d{3}[A-Z]?[.,·]\d{3}$/;
-function normCodeTok(t) {
-  return String(t || '').toUpperCase().replace(/[^A-Z0-9.,·]/g, '').replace(/[·]/g, '.');
-}
-function isCode(t) { return CODE_RE.test(normCodeTok(t)); }
+const MONTHS = {
+  jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4,
+  may: 5, jun: 6, june: 6, jul: 7, july: 7, aug: 8, august: 8,
+  sep: 9, sept: 9, september: 9, oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12
+};
+const TYPE_WORDS = /^(lecture|lectures|tutorial|tutorials|lab|laboratory|seminar|pbl|pcp|ward visit|ward visits|presentation|presentations|workshop|clinical|practical|exam|test|class test|revision|field trip|placement|class|clinic|rounds)$/i;
+const ROOM_RE = /^[A-Z]{0,5}[-–]?[A-Z]?\d{1,3}(?:[-–][A-Z0-9]{1,3})?[A-Z]?$/i;
+const LECT_RE = /^[A-Z][A-Z'’\-]{1,},\S*$/;
+const NAME_RE = /\b(Mr|Mrs|Ms|Miss|Dr|Prof|Professor)\.?\s*[A-Z]/;
+const WEEKDAY_PAREN_RE = /^\(?\s*(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)[a-z]*\s*\)?$/i;
+const TIME_ONLY_RE = /^\d{1,2}\s*[:.]\s*\d{2}\s*(am|pm)?$/i;
 
+const DATE_SRC = [
+  '(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\\.?\\s*\\d{1,2}(?:st|nd|rd|th)?\\s*,?\\s*20\\d{2}(?:\\s*\\([A-Za-z]+\\))?',
+  '\\d{1,2}(?:st|nd|rd|th)?\\s*[-–]?\\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\\.?,?\\s*20\\d{2}(?:\\s*\\([A-Za-z]+\\))?',
+  '20\\d{2}[-/.]\\d{1,2}[-/.]\\d{1,2}'
+].join('|');
+
+function extractDateFromText(text) {
+  const t = String(text || '').replace(/\u00a0/g, ' ');
+  let m = /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s*(\d{1,2})(?:st|nd|rd|th)?\s*,?\s*(20\d{2})\b/i.exec(t);
+  if (m) return `${m[3]}-${pad2(MONTHS[m[1].toLowerCase()])}-${pad2(+m[2])}`;
+  m = /\b(\d{1,2})(?:st|nd|rd|th)?\s*[-–]?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?,?\s*(20\d{2})\b/i.exec(t);
+  if (m) return `${m[3]}-${pad2(MONTHS[m[2].toLowerCase()])}-${pad2(+m[1])}`;
+  m = /\b(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})\b/.exec(t);
+  if (m) return `${m[1]}-${pad2(+m[2])}-${pad2(+m[3])}`;
+  return '';
+}
+function normCodeTok(t) { return String(t || '').toUpperCase().replace(/[^A-Z0-9.,·]/g, '').replace(/[·]/g, '.'); }
+function isCode(t) { return CODE_RE.test(normCodeTok(t)); }
 function dayIndexOf(tok) {
   const t = String(tok || '').toLowerCase().replace(/[^a-z]/g, '');
   if (t.length < 3) return null;
@@ -600,27 +650,95 @@ function parseTimeTok(tok) {
   if (h > 23 || mi > 59) return null;
   return h * 60 + mi;
 }
-const ROOM_RE = /^[A-Z]{0,4}\d{1,4}[A-Z]?$/i;
-const LECT_RE = /^[A-Z][A-Z'’\-]{1,},\S*$/;
 
-function clusterLines(words) {
-  if (!words.length) return [];
-  const hs = words.map(w => w.h || 10).sort((a, b) => a - b);
-  const medH = hs[Math.floor(hs.length / 2)] || 10;
-  const tol = Math.max(6, medH * 0.65);
+/* ---------- 依垂直重疊聚成橫列 ---------- */
+function groupRows(words) {
+  if (!words || !words.length) return [];
   const sorted = words.slice().sort((a, b) => (a.y + (a.h || 10) / 2) - (b.y + (b.h || 10) / 2));
-  const lines = [];
+  const rows = [];
   for (const w of sorted) {
-    const cy = w.y + (w.h || 10) / 2;
-    const last = lines[lines.length - 1];
-    if (last && Math.abs(cy - last.cy) < tol) {
-      last.words.push(w); last.n++; last.cy += (cy - last.cy) / last.n;
-    } else lines.push({ cy, n: 1, words: [w] });
+    const h = w.h || 10;
+    const y0 = w.y, y1 = w.y + h;
+    let target = null;
+    for (let i = rows.length - 1; i >= 0 && i >= rows.length - 4; i--) {
+      const r = rows[i];
+      const overlap = Math.min(y1, r.y1) - Math.max(y0, r.y0);
+      if (overlap > Math.min(h, r.h) * 0.35) { target = r; break; }
+    }
+    if (target) {
+      target.words.push(w);
+      target.y0 = Math.min(target.y0, y0);
+      target.y1 = Math.max(target.y1, y1);
+      target.h = target.y1 - target.y0;
+    } else rows.push({ y0, y1, h, words: [w] });
   }
-  lines.forEach(l => l.words.sort((a, b) => a.x - b.x));
-  return lines;
+  rows.forEach(r => { r.words.sort((a, b) => a.x - b.x); r.cy = (r.y0 + r.y1) / 2; });
+  return rows;
+}
+function clusterLines(words) { return groupRows(words); }
+
+function rowsToDebugText(rows) {
+  return rows.map((r, i) =>
+    `${String(i + 1).padStart(2, ' ')} │ y=${String(Math.round(r.y0)).padStart(4, ' ')} │ ` +
+    r.words.map(w => w.text).join(' ')
+  ).join('\n');
 }
 
+/* ---------- 欄位 → 課堂 ---------- */
+function buildSessionFromCells(date, start, end, cells) {
+  const names = [], rooms = [], others = [];
+
+  for (const raw of cells) {
+    let t = String(raw || '').replace(/\s+/g, ' ').trim();
+    if (!t) continue;
+    if (WEEKDAY_PAREN_RE.test(t)) continue;
+    if (TIME_ONLY_RE.test(t)) continue;                 /* 殘留的時間不要進課名 */
+    if (/^[\s:：·•.,，、\/|-]+$/.test(t)) continue;      /* 純標點 */
+    if (NAME_RE.test(t)) { names.push(t); continue; }
+    if (/^(TBC|TBA|TBD)\.?$/i.test(t)) { rooms.push(t.replace(/\.$/, '').toUpperCase()); continue; }
+    if (ROOM_RE.test(t) && /\d/.test(t) && t.length <= 14) { rooms.push(t); continue; }
+    others.push(t);
+  }
+
+  /* 去掉重複出現的字串（OCR 常把同一格讀兩次） */
+  const uniq = [];
+  others.forEach(t => { if (uniq.indexOf(t) < 0) uniq.push(t); });
+
+  let type = '';
+  if (uniq.length && TYPE_WORDS.test(uniq[0])) type = uniq.shift();
+
+  let title = uniq.join(' ')
+    .replace(/\s*:\s*([.．])\s*/g, ': ')      /* ": ." → ": " */
+    .replace(/\s*:\s*$/,'')
+    .replace(/^[\s:：·•.,，、\/|-]+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (title.length > 180) title = title.slice(0, 180).trim();
+
+  let teacher = names.join('; ');
+  let venue = rooms[0] || '';
+
+  /* 只有一格時，用 regex 把老師名字撈出來 */
+  if (!teacher && title) {
+    const nm = title.match(/(?:Mr|Mrs|Ms|Miss|Dr|Prof)\.?\s+[A-Z][A-Za-z\-']+(?:\s+[A-Z][A-Za-z\-']+)*(?:\s*\([A-Za-z0-9]+\))?/g);
+    if (nm) {
+      teacher = nm.join('; ');
+      nm.forEach(s => { title = title.split(s).join(' '); });
+      title = title.replace(/\s+/g, ' ').trim();
+    }
+  }
+  /* 標題結尾若黏了房號，搬到地點 */
+  if (!venue) {
+    const tailRoom = /([A-Z]{2,5}[-–]?\d{1,3}[A-Z]?)$/.exec(title);
+    if (tailRoom) { venue = tailRoom[1]; title = title.slice(0, title.length - tailRoom[1].length).trim(); }
+  }
+  if (!title) title = type;
+  if (!title) return null;
+
+  return mkCourse({ kind: 'event', date, start, end, code: type, title, lecturer: teacher, room: venue });
+}
+
+/* ---------- 4a. 週課表（List 檢視） ---------- */
 function tryAppendTitle(out, line) {
   if (!out.length) return;
   const toks = line.words.map(w => w.text);
@@ -636,7 +754,6 @@ function tryAppendTitle(out, line) {
   if (prev.title && prev.title.toUpperCase().includes(txt.toUpperCase())) return;
   prev.title = (prev.title + ' ' + txt).replace(/\s+/g, ' ').trim();
 }
-
 function parseListLines(lines) {
   const out = [];
   for (const line of lines) {
@@ -674,7 +791,6 @@ function parseListLines(lines) {
       if (ROOM_RE.test(t)) { room = t; break; }
       if (/^[A-Z]{2,4}$/.test(t) && /^\d{2,4}$/.test(toks[i + 1] || '')) { room = t + toks[i + 1]; break; }
     }
-
     const c = mkCourse({ code, title, lecturer, room, day: dayIndexOf(toks[dayIdx]), start, end });
     c._tx0 = line.words[ci].x;
     c._tx1 = line.words[titleEnd - 1] ? line.words[titleEnd - 1].x : line.words[dayIdx].x;
@@ -683,6 +799,131 @@ function parseListLines(lines) {
   return out;
 }
 
+/* ---------- 4b. 日期式（座標＋橫列） ---------- */
+function splitByXGap(words, medH) {
+  if (!words.length) return [];
+  const sorted = words.slice().sort((a, b) => a.x - b.x);
+  const gap = Math.max(22, medH * 3.2);
+  const cells = [];
+  let cur = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const prevRight = prev.x + (prev.w || medH);
+    if (sorted[i].x - prevRight > gap) { cells.push(cur); cur = []; }
+    cur.push(sorted[i]);
+  }
+  cells.push(cur);
+  return cells;
+}
+function cellTextOf(words) { return words.map(w => w.text).join(' ').replace(/\s+/g, ' ').trim(); }
+
+function parseDatedWords(rows, words) {
+  const anchors = [];
+  for (const row of rows) {
+    const text = row.words.map(w => w.text).join(' ');
+    const d = extractDateFromText(text);
+    if (!d) continue;
+    if (anchors.length && Math.abs(row.cy - anchors[anchors.length - 1].cy) < 8) continue;
+    anchors.push({ date: d, cy: row.cy });
+  }
+  logLine('含日期的橫列：' + anchors.length + ' 個');
+  if (!anchors.length) return [];
+  anchors.sort((a, b) => a.cy - b.cy);
+
+  const hs = words.map(w => w.h || 10).sort((a, b) => a - b);
+  const medH = hs[Math.floor(hs.length / 2)] || 10;
+  const gaps = [];
+  for (let i = 1; i < anchors.length; i++) gaps.push(anchors[i].cy - anchors[i - 1].cy);
+  gaps.sort((a, b) => a - b);
+  const avgGap = gaps.length ? gaps[Math.floor(gaps.length / 2)] : medH * 6;
+
+  const out = [];
+  let noTime = 0;
+
+  for (let i = 0; i < anchors.length; i++) {
+    const top = i === 0 ? anchors[i].cy - avgGap / 2 : (anchors[i - 1].cy + anchors[i].cy) / 2;
+    const bot = i === anchors.length - 1 ? anchors[i].cy + avgGap / 2 : (anchors[i].cy + anchors[i + 1].cy) / 2;
+
+    const band = words.filter(w => {
+      const c = w.y + (w.h || 10) / 2;
+      return c >= top && c < bot;
+    });
+    if (!band.length) continue;
+
+    const timeToks = band.filter(w => parseTimeTok(w.text) !== null).sort((a, b) => a.x - b.x);
+    if (timeToks.length < 2) { noTime++; continue; }
+    const start = parseTimeTok(timeToks[0].text);
+    let end = parseTimeTok(timeToks[1].text);
+    if (start === null || end === null) { noTime++; continue; }
+    if (end <= start && end + 720 <= 23 * 60) end += 720;
+
+    const dateColRight = timeToks[0].x - 4;
+    const timeSet = new Set([timeToks[0], timeToks[1]]);
+    const rest = band.filter(w => w.x >= dateColRight && !timeSet.has(w));
+    if (!rest.length) continue;
+
+    const cells = splitByXGap(rest, medH).filter(c => c.length).map(cellTextOf);
+    const c = buildSessionFromCells(anchors[i].date, start, end, cells);
+    if (c) out.push(c);
+  }
+  if (noTime) logLine('（有 ' + noTime + ' 個日期列找不到兩個時間，已略過）');
+  return dedupe(out);
+}
+
+/* ---------- 4c. 日期式：貼上文字 ---------- */
+function parseDatedText(text) {
+  const src = String(text || '').replace(/\u00a0/g, ' ').replace(/\r\n?/g, '\n');
+  const re = new RegExp(DATE_SRC, 'gi');
+  const starts = [];
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    starts.push(m.index);
+    if (re.lastIndex === m.index) re.lastIndex++;
+  }
+  if (!starts.length) return [];
+
+  const out = [];
+  for (let i = 0; i < starts.length; i++) {
+    const a = starts[i];
+    const b = (i + 1 < starts.length) ? starts[i + 1] : src.length;
+    const part = src.slice(a, b);
+
+    const date = extractDateFromText(part);
+    if (!date) continue;
+
+    const dm = new RegExp(DATE_SRC, 'i').exec(part);
+    const rest = dm ? part.slice(dm.index + dm[0].length) : part;
+
+    const tm = [...rest.matchAll(/(\d{1,2}\s*[:.]\s*\d{2})\s*(am|pm)?/gi)];
+    if (tm.length < 2) continue;
+    const start = parseTimeTok(tm[0][1]);
+    let end = parseTimeTok(tm[1][1]);
+    if (start === null || end === null) continue;
+    if (end <= start && end + 720 <= 23 * 60) end += 720;
+
+    const after = rest.slice(tm[1].index + tm[1][0].length);
+    const cells = after.split(/[\t\n]+|\s{2,}/)
+      .map(s => s.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .filter(s => !/^\d{1,2}$/.test(s));
+
+    const c = buildSessionFromCells(date, start, end, cells);
+    if (c) out.push(c);
+  }
+  return dedupe(out);
+}
+
+function dedupe(list) {
+  const seen = new Set(), out = [];
+  for (const c of list) {
+    const k = c.date + '|' + c.start + '|' + (c.code || '') + '|' + c.title;
+    if (seen.has(k)) continue;
+    seen.add(k); out.push(c);
+  }
+  return out;
+}
+
+/* ---------- 4d. 格子式週課表 ---------- */
 function parseGridWords(words) {
   const heads = [];
   for (const w of words) {
@@ -697,20 +938,18 @@ function parseGridWords(words) {
     heads.forEach(h => { const dd = Math.abs(x - h.x); if (dd < bd) { bd = dd; best = h.d; } });
     return best;
   };
-
   const bands = [];
-  for (const line of clusterLines(words)) {
-    const txt = line.words.map(w => w.text).join(' ');
+  for (const row of groupRows(words)) {
+    const txt = row.words.map(w => w.text).join(' ');
     const ms = [...txt.matchAll(/(\d{1,2}\s*[:.]\s*\d{2}\s*(?:am|pm)?)/gi)];
     if (ms.length >= 2) {
       const st = parseTimeTok(ms[0][1]), en = parseTimeTok(ms[1][1]);
-      if (st !== null && en !== null && en > st) bands.push({ st, en, y: line.cy, x: line.words[0].x });
+      if (st !== null && en !== null && en > st) bands.push({ st, en, y: row.cy, x: row.words[0].x });
     }
   }
   if (!bands.length) return [];
   bands.sort((a, b) => a.y - b.y);
   const labelRight = Math.max.apply(null, bands.map(b => b.x));
-
   const cells = new Map();
   for (const w of words) {
     if (w.x <= labelRight + 10) continue;
@@ -720,10 +959,9 @@ function parseGridWords(words) {
     if (!cells.has(key)) cells.set(key, { day: colOf(w.x), band, words: [] });
     cells.get(key).words.push(w);
   }
-
   const out = [], seen = new Set();
   for (const c of cells.values()) {
-    const toks = c.words.sort((a, b) => a.y - b.y || a.x - b.x).map(w => w.text);
+    const toks = c.words.slice().sort((a, b) => a.y - b.y || a.x - b.x).map(w => w.text);
     const ci = toks.findIndex(isCode);
     if (ci < 0) continue;
     const code = normCodeTok(toks[ci]).replace(/[^A-Z0-9.]/g, '');
@@ -741,6 +979,7 @@ function parseGridWords(words) {
   return out;
 }
 
+/* ---------- 4e. 週課表：純文字 ---------- */
 function parsePlainText(text) {
   const out = [];
   const DAY_RE = /\b(mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/i;
@@ -790,26 +1029,33 @@ function setProgress(p, msg) {
   if (msg) logLine(msg);
 }
 function showProg(onOff) { show('#progWrap', onOff); }
+function setRawText(t) {
+  lastRawText = t || '';
+  const el = $('#rawText');
+  if (el) el.textContent = lastRawText || '（尚無內容）';
+}
 
-async function fileToCanvas(file, maxW) {
-  maxW = maxW || 1900;
+async function fileToCanvas(file, targetW) {
+  targetW = targetW || 2800;
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
     img.src = url;
-    await new Promise((res, rej) => {
-      img.onload = res;
-      img.onerror = () => rej(new Error('圖片讀取失敗'));
-    });
-    const scale = Math.min(3, Math.max(1, maxW / img.width));
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('圖片讀取失敗')); });
+    const scale = Math.min(4, Math.max(1, targetW / img.width));
+    const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+    const pad = 30;
     const c = document.createElement('canvas');
-    c.width = Math.round(img.width * scale);
-    c.height = Math.round(img.height * scale);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    c.width = w + pad * 2; c.height = h + pad * 2;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, pad, pad, w, h);
+    logLine(`圖片放大 ${scale.toFixed(2)} 倍 → ${c.width}×${c.height}`);
     return c;
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  }
+  } finally { setTimeout(() => URL.revokeObjectURL(url), 2000); }
 }
 
 function preprocess(src) {
@@ -849,7 +1095,11 @@ async function getWorker() {
   tessWorker = await Tesseract.createWorker('eng', 1, {
     logger: m => { if (m && m.status) setProgress(m.progress || 0, m.status); }
   });
-  await tessWorker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' });
+  await tessWorker.setParameters({
+    tessedit_pageseg_mode: '6',
+    preserve_interword_spaces: '1',
+    user_defined_dpi: '300'
+  });
   return tessWorker;
 }
 
@@ -860,7 +1110,7 @@ function wordsFromTSV(tsv) {
     if (cols.length < 12 || cols[0] !== '5') continue;
     const conf = parseFloat(cols[10]);
     const text = (cols[11] || '').trim();
-    if (!text || isNaN(conf) || conf < 25) continue;
+    if (!text || isNaN(conf) || conf < 15) continue;
     const x = +cols[6], y = +cols[7], w = +cols[8], h = +cols[9];
     if (!isFinite(x) || !isFinite(y)) continue;
     out.push({ text, x, y, w, h });
@@ -871,15 +1121,23 @@ function wordsFromTSV(tsv) {
 async function ocrCanvas(canvas) {
   const w = await getWorker();
   setProgress(0.1, '辨識中…');
-  const res = await w.recognize(canvas, {}, { text: true, tsv: true });
+  const res = await w.recognize(canvas, {}, { text: true, tsv: true, blocks: true });
   const data = res && res.data ? res.data : res;
+
   let words = (data && data.tsv) ? wordsFromTSV(data.tsv) : [];
-  if (!words.length && data && data.words) {
-    words = data.words.filter(x => x.text && x.text.trim())
-      .map(x => ({ text: x.text.trim(), x: x.bbox.x0, y: x.bbox.y0, w: x.bbox.x1 - x.bbox.x0, h: x.bbox.y1 - x.bbox.y0 }));
+  if (!words.length && data && data.blocks) {
+    data.blocks.forEach(b => (b.paragraphs || []).forEach(p => (p.lines || []).forEach(l => {
+      (l.words || []).forEach(x => {
+        if (!x.text || !x.text.trim()) return;
+        words.push({ text: x.text.trim(), x: x.bbox.x0, y: x.bbox.y0, w: x.bbox.x1 - x.bbox.x0, h: x.bbox.y1 - x.bbox.y0 });
+      });
+    })));
   }
+  const rows = groupRows(words);
+  setRawText(rowsToDebugText(rows));
+  logLine('橫列重組：' + rows.length + ' 列');
   setProgress(1, '辨識完成');
-  return words;
+  return { words, rows };
 }
 
 async function ensurePdfjs() {
@@ -916,12 +1174,13 @@ function expandPdfItem(it, pageH) {
 async function handleFile(file) {
   if (!file) return;
   showProg(true);
-  const log = $('#progLog');
-  if (log) log.textContent = '';
+  if ($('#progLog')) $('#progLog').textContent = '';
+  setRawText('');
   logLine('讀取 ' + (file.name || '檔案') + ' …');
   try {
     const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
-    let words = [];
+    let words = [], rows = null;
+
     if (isPdf) {
       await ensurePdfjs();
       const buf = await file.arrayBuffer();
@@ -940,20 +1199,25 @@ async function handleFile(file) {
       if (collected.map(w => w.text).join('').length > 120) {
         logLine('偵測到 PDF 文字層 → 直接抽取文字（比 OCR 準）');
         words = collected;
+        rows = groupRows(words);
+        setRawText(rowsToDebugText(rows));
       } else {
         logLine('PDF 沒有文字層（掃描檔）→ 改用 OCR');
-        words = await ocrPdf(file);
+        const r = await ocrPdf(file);
+        words = r.words; rows = r.rows;
       }
     } else {
-      logLine('圖片前處理：放大 + 灰階 + 對比強化');
-      words = await ocrCanvas(preprocess(await fileToCanvas(file)));
+      logLine('圖片前處理：放大 + 白邊 + 灰階 + 對比強化');
+      const r = await ocrCanvas(preprocess(await fileToCanvas(file)));
+      words = r.words; rows = r.rows;
     }
+
     logLine('取得 ' + words.length + ' 個文字片段');
-    finishParse(extractCourses(words));
+    finishParse(extractCourses(words, rows || groupRows(words)));
   } catch (err) {
     console.error(err);
     logLine('❌ ' + (err && err.message ? err.message : String(err)));
-    logLine('OCR 需要網路連線下載引擎。也可以先用「載入我的課表示例」，或「貼上文字版課表」。');
+    logLine('建議改用「貼上文字版課表」：在學校網頁選取表格 → 複製 → 貼上，準確率最高。');
   }
 }
 
@@ -961,41 +1225,85 @@ async function ocrPdf(file) {
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
   const page = await pdf.getPage(1);
-  const vp = page.getViewport({ scale: 2 });
+  const vp = page.getViewport({ scale: 2.5 });
   const c = document.createElement('canvas');
   c.width = Math.round(vp.width); c.height = Math.round(vp.height);
   await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
   return ocrCanvas(preprocess(c));
 }
 
-function extractCourses(words) {
+function extractCourses(words, rows) {
   if (!words || !words.length) return [];
-  const lines = clusterLines(words);
-  let list = parseListLines(lines);
-  if (list.length) {
-    logLine('以「List 檢視」模式解析：找到 ' + list.length + ' 筆');
-  } else {
-    logLine('List 模式沒有結果 → 嘗試「Timetable 格子」模式');
-    list = parseGridWords(words);
+  rows = rows || groupRows(words);
+
+  const dated = parseDatedWords(rows, words);
+  const weekly = parseListLines(rows);
+  logLine('日期式：' + dated.length + ' 堂　·　週模式：' + weekly.length + ' 門');
+
+  if (dated.length && dated.length >= weekly.length) {
+    logLine('採用「日期式課表」結果');
+    return dated;
   }
-  return list.map(c => { delete c._tx0; delete c._tx1; return c; });
+  if (weekly.length) {
+    logLine('採用「週課表」結果');
+    return weekly.map(c => { delete c._tx0; delete c._tx1; return c; });
+  }
+  logLine('再試「格子式週課表」…');
+  return parseGridWords(words);
+}
+
+function autofitSemester(items) {
+  const dates = items.filter(c => c.kind === 'event' && parseYMD(c.date)).map(c => c.date).sort();
+  if (!dates.length) return false;
+  const first = mondayOfYmd(dates[0]);
+  const last = dates[dates.length - 1];
+  let changed = false;
+  const curStart = anchorMonday();
+  if (!curStart || first < curStart) { state.semester.start = first; changed = true; }
+  if (!state.semester.end || last > state.semester.end) { state.semester.end = last; changed = true; }
+  if (changed) {
+    state.semester.autoEnd = false;
+    setVal('#sStart', state.semester.start);
+    setVal('#sEnd', state.semester.end);
+  }
+  return changed;
 }
 
 function finishParse(courses) {
   const valid = (courses || []).filter(c => c && (c.title || c.code));
   const seen = new Set(), dedup = [];
   for (const c of valid) {
-    const k = c.code + '|' + c.day + '|' + c.start;
+    const k = c.kind + '|' + (c.date || '') + '|' + c.day + '|' + c.start + '|' + c.title;
     if (seen.has(k)) continue;
     seen.add(k); dedup.push(c);
   }
   if (!dedup.length) {
-    logLine('⚠️ 沒有辨識出任何課程。建議改用「貼上文字版課表」，或手動新增。');
+    logLine('⚠️ 沒有辨識出任何課程。');
+    logLine('請按「顯示橫列重組結果」，確認程式有沒有把同一行的字聚在一起。');
+    show('#rawText', true);
     return;
   }
+
   dedup.forEach(c => state.courses.push(c));
+  const fitted = autofitSemester(dedup);
+  if (fitted) logLine('已把學期範圍調整為 ' + state.semester.start + ' ～ ' + state.semester.end);
+
+  /* 若大部分日期已過去，自動關閉「只匯入今天以後」，避免匯出 0 筆 */
+  const evs = dedup.filter(c => c.kind === 'event' && c.date);
+  if (evs.length) {
+    const past = evs.filter(c => c.date < todayYmd()).length;
+    if (past >= evs.length * 0.5 && state.settings.futureOnly) {
+      state.settings.futureOnly = false;
+      const fo = $('#futureOnly');
+      if (fo) fo.checked = false;
+      logLine('ℹ️ 這份課表有 ' + past + '/' + evs.length + ' 堂的日期已過去，已自動關閉「只匯入今天以後」。');
+    }
+  }
+
+  if (dedup.filter(c => c.kind === 'event').length >= dedup.length * 0.6) state.view = 'list';
+
   renderAll(); save();
-  logLine('✅ 匯入 ' + dedup.length + ' 門課，請在下方核對');
+  logLine('✅ 匯入 ' + dedup.length + ' 項，請在下方核對');
   const s2 = $('#step2');
   if (s2) s2.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -1004,7 +1312,6 @@ function finishParse(courses) {
    6. 日期推算
    ========================================================= */
 function anchorMonday() { return state.semester.start ? mondayOfYmd(state.semester.start) : ''; }
-
 function weeksCount() {
   const a = anchorMonday();
   if (!a || !state.semester.end) return 0;
@@ -1016,8 +1323,6 @@ function holidayOffSet() {
   (state.holidays || []).forEach(h => { if (h.off && h.date) s.add(h.date); });
   return s;
 }
-
-/* 這門課「第一堂」的日期：有設定就用設定值，否則用學期第一週的該星期 */
 function firstDateOf(c) {
   if (c.kind === 'event') return c.date || '';
   if (parseYMD(c.firstDate)) return c.firstDate;
@@ -1026,16 +1331,12 @@ function firstDateOf(c) {
   const off = (c.freq === 'biweekly' && c.biweek === 2) ? 7 : 0;
   return addDaysYmd(a, c.day + off);
 }
-
-/* 該日期是學期第幾週（1 起算；無法計算回傳 0） */
 function weekNoOf(dateStr) {
   const a = anchorMonday();
   if (!a || !parseYMD(dateStr)) return 0;
   const d = daysBetweenYmd(a, dateStr);
-  if (d < 0) return 0;
-  return Math.floor(d / 7) + 1;
+  return d < 0 ? 0 : Math.floor(d / 7) + 1;
 }
-
 function blockDay(c) {
   if (c.kind === 'event' && c.date) {
     const d = dowMonOfYmd(c.date);
@@ -1044,26 +1345,20 @@ function blockDay(c) {
   if (parseYMD(c.firstDate)) return dowMonOfYmd(c.firstDate);
   return c.day;
 }
-
 function courseDates(c, anchor, endYmd) {
   if (!anchor || !endYmd) return [];
   if (c.kind === 'event') {
     if (!c.date) return [];
-    return (c.date >= anchor && c.date <= endYmd) ? [c.date] : [];
+    return (c.date <= endYmd) ? [c.date] : [];
   }
   const start = firstDateOf(c);
   if (!parseYMD(start)) return [];
   const out = [];
   const step = c.freq === 'biweekly' ? 14 : 7;
-  let cur = start;
-  let guard = 0;
-  while (cur && cur <= endYmd && guard++ < 200) {
-    out.push(cur);
-    cur = addDaysYmd(cur, step);
-  }
+  let cur = start, guard = 0;
+  while (cur && cur <= endYmd && guard++ < 200) { out.push(cur); cur = addDaysYmd(cur, step); }
   return out;
 }
-
 function effectiveDates(c) {
   const anchor = anchorMonday();
   const end = state.semester.end;
@@ -1089,32 +1384,19 @@ function effectiveDates(c) {
    ========================================================= */
 const HK_BUILTIN = {
   2026: [
-    ['2026-01-01', '一月一日'],
-    ['2026-02-17', '農曆年初一'],
-    ['2026-02-18', '農曆年初二'],
-    ['2026-02-19', '農曆年初三'],
-    ['2026-04-03', '耶穌受難節'],
-    ['2026-04-04', '耶穌受難節翌日'],
-    ['2026-04-06', '復活節星期一'],
-    ['2026-04-07', '清明節翌日'],
-    ['2026-05-01', '勞動節'],
-    ['2026-05-25', '佛誕'],
-    ['2026-06-19', '端午節'],
-    ['2026-07-01', '香港特別行政區成立紀念日'],
-    ['2026-09-26', '中秋節翌日'],
-    ['2026-10-01', '國慶日'],
-    ['2026-10-19', '重陽節'],
-    ['2026-12-25', '聖誕節'],
-    ['2026-12-26', '聖誕節後第一個周日']
+    ['2026-01-01', '一月一日'], ['2026-02-17', '農曆年初一'], ['2026-02-18', '農曆年初二'],
+    ['2026-02-19', '農曆年初三'], ['2026-04-03', '耶穌受難節'], ['2026-04-04', '耶穌受難節翌日'],
+    ['2026-04-06', '復活節星期一'], ['2026-04-07', '清明節翌日'], ['2026-05-01', '勞動節'],
+    ['2026-05-25', '佛誕'], ['2026-06-19', '端午節'], ['2026-07-01', '香港特別行政區成立紀念日'],
+    ['2026-09-26', '中秋節翌日'], ['2026-10-01', '國慶日'], ['2026-10-19', '重陽節'],
+    ['2026-12-25', '聖誕節'], ['2026-12-26', '聖誕節後第一個周日']
   ]
 };
-
 function builtinList(year) {
   const raw = HK_BUILTIN[year];
   if (!raw) return null;
-  return raw.map(pair => ({ date: pair[0], name: pair[1], off: true, src: 'builtin' }));
+  return raw.map(p => ({ date: p[0], name: p[1], off: true, src: 'builtin' }));
 }
-
 function semesterYears() {
   const a = anchorMonday() || state.semester.start;
   const b = state.semester.end;
@@ -1124,7 +1406,6 @@ function semesterYears() {
   for (let y = pa.y; y <= pb.y; y++) ys.push(y);
   return ys;
 }
-
 function easterYmd(y) {
   const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4,
     f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3),
@@ -1133,135 +1414,97 @@ function easterYmd(y) {
     mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1;
   return `${y}-${pad2(mo)}-${pad2(da)}`;
 }
-
 function fixedHK(y) {
   const e = easterYmd(y);
   return [
-    { date: `${y}-01-01`, name: '一月一日' },
-    { date: addDaysYmd(e, -2), name: '耶穌受難節' },
-    { date: addDaysYmd(e, -1), name: '耶穌受難節翌日' },
-    { date: e, name: '復活節星期一' },
-    { date: `${y}-05-01`, name: '勞動節' },
-    { date: `${y}-07-01`, name: '香港特別行政區成立紀念日' },
-    { date: `${y}-10-01`, name: '國慶日' },
-    { date: `${y}-12-25`, name: '聖誕節' },
+    { date: `${y}-01-01`, name: '一月一日' }, { date: addDaysYmd(e, -2), name: '耶穌受難節' },
+    { date: addDaysYmd(e, -1), name: '耶穌受難節翌日' }, { date: e, name: '復活節星期一' },
+    { date: `${y}-05-01`, name: '勞動節' }, { date: `${y}-07-01`, name: '香港特別行政區成立紀念日' },
+    { date: `${y}-10-01`, name: '國慶日' }, { date: `${y}-12-25`, name: '聖誕節' },
     { date: `${y}-12-26`, name: '聖誕節後第一個周日' }
   ].map(h => ({ date: h.date, name: h.name, off: true, src: 'fixed' }));
 }
-
 function normalizeHolidayJSON(json) {
   let arr = json;
   if (arr && !Array.isArray(arr) && Array.isArray(arr.data)) arr = arr.data;
   if (!Array.isArray(arr)) return [];
   return arr.map(h => ({
-    date: h.date || h.start || h.day || '',
-    name: h.localName || h.name || h.summary || h.title || '',
-    off: true,
-    src: 'hk'
+    date: h.date || h.start || '', name: h.localName || h.name || h.summary || '', off: true, src: 'hk'
   })).filter(h => /^\d{4}-\d{2}-\d{2}$/.test(h.date));
 }
-
 async function fetchYearHolidays(year, force) {
   const ck = 'holiHK.v3.' + year;
   if (!force) {
     try {
       const c = localStorage.getItem(ck);
-      if (c) {
-        const p = JSON.parse(c);
-        if (Array.isArray(p) && p.length) return { list: p, src: 'cache' };
-      }
+      if (c) { const p = JSON.parse(c); if (Array.isArray(p) && p.length) return { list: p, src: 'cache' }; }
     } catch (e) {}
   }
-
   const api = 'https://date.nager.at/api/v3/PublicHolidays/' + year + '/HK';
   const urls = [
     api,
     'https://api.allorigins.win/raw?url=' + encodeURIComponent(api),
     'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(api)
   ];
-
   for (const u of urls) {
     try {
       const res = await fetchTimeout(u, 7000);
       if (!res.ok) continue;
-      const json = await res.json();
-      const list = normalizeHolidayJSON(json);
+      const list = normalizeHolidayJSON(await res.json());
       if (list.length) {
         try { localStorage.setItem(ck, JSON.stringify(list)); } catch (e) {}
         return { list, src: 'api' };
       }
-    } catch (e) { /* 換下一個來源 */ }
+    } catch (e) {}
   }
-
   const bl = builtinList(year);
   if (bl) return { list: bl, src: 'builtin' };
   return { list: fixedHK(year), src: 'fixed' };
 }
-
 function mergeHoliday(h) {
   if (!parseYMD(h.date)) return;
   const ex = state.holidays.find(x => x.date === h.date);
   if (ex) { if (!ex.name) ex.name = h.name; return; }
   state.holidays.push({ date: h.date, name: h.name || '', off: true, src: h.src || 'hk' });
 }
-
 function replaceYearHolidays(year, list) {
   const ys = String(year);
-  state.holidays = state.holidays.filter(h => {
-    const sameYear = String(h.date).slice(0, 4) === ys;
-    return !(sameYear && h.src !== 'custom');
-  });
+  state.holidays = state.holidays.filter(h => !(String(h.date).slice(0, 4) === ys && h.src !== 'custom'));
   (list || []).forEach(mergeHoliday);
 }
-
 let holiBusy = false;
-
 function holidayMessage(used, years) {
   const label = { api: '已從線上資料庫取得', cache: '使用上次快取', builtin: '使用內建官方清單', fixed: '只有固定假期' };
-  const parts = years.map(y => `${y}：${label[used[y]] || '已載入'}`);
-  const degraded = years.some(y => used[y] === 'builtin' || used[y] === 'fixed');
-  let msg = parts.join('　·　');
-  if (years.some(y => used[y] === 'fixed')) {
-    msg += '。農曆假期（新年、佛誕、端午、中秋、重陽）請自行補上，或到政府網站查看後新增。';
-  } else if (degraded) {
-    msg += '。內建資料請自行核對一次；不適用的日子取消勾選即可。';
-  } else {
-    msg += '。';
-  }
+  let msg = years.map(y => `${y}：${label[used[y]] || '已載入'}`).join('　·　');
+  if (years.some(y => used[y] === 'fixed')) msg += '。農曆假期請自行補上。';
+  else if (years.some(y => used[y] === 'builtin')) msg += '。內建資料請自行核對一次。';
+  else msg += '。';
   return msg;
 }
-
 async function loadHKHolidays(force) {
   if (holiBusy) return;
   const years = semesterYears();
   if (!years.length) { setText('#holiStatus', '請先設定學期開始與結束日期。'); return; }
   holiBusy = true;
   setText('#holiStatus', '正在載入香港公眾假期…');
-
   const used = {};
   for (const y of years) {
     let r;
-    try {
-      r = await fetchYearHolidays(y, force);
-    } catch (e) {
-      r = { list: builtinList(y) || fixedHK(y), src: builtinList(y) ? 'builtin' : 'fixed' };
-    }
+    try { r = await fetchYearHolidays(y, force); }
+    catch (e) { r = { list: builtinList(y) || fixedHK(y), src: builtinList(y) ? 'builtin' : 'fixed' }; }
     replaceYearHolidays(y, r.list);
     used[y] = r.src;
   }
-
   holiBusy = false;
   renderHolidays(); renderSemesterInfo(); renderOutput(); save();
   setText('#holiStatus', holidayMessage(used, years));
 }
-
 function renderHolidays() {
   const a = anchorMonday() || state.semester.start;
   const end = state.semester.end;
   let list = (state.holidays || []).slice().filter(h => !!parseYMD(h.date));
   if (a && end) list = list.filter(h => h.date >= addDaysYmd(a, -3) && h.date <= addDaysYmd(end, 3));
   list.sort((x, y) => x.date.localeCompare(y.date));
-
   const box = $('#holiChips');
   if (!box) return;
   if (!list.length) {
@@ -1271,11 +1514,9 @@ function renderHolidays() {
   box.innerHTML = list.map(h => `
     <label class="chip ${h.off ? 'on' : 'off'}">
       <input type="checkbox" ${h.off ? 'checked' : ''} data-toggle="${h.date}">
-      <b>${h.date.slice(5).replace('-', '/')}</b>
-      <span>${esc(h.name || '停課')}</span>
+      <b>${mmdd(h.date)}</b><span>${esc(h.name || '停課')}</span>
       ${h.src === 'custom' ? `<span class="x" data-del="${h.date}">×</span>` : ''}
     </label>`).join('');
-
   box.querySelectorAll('[data-toggle]').forEach(cb => {
     cb.addEventListener('change', () => {
       const h = state.holidays.find(x => x.date === cb.getAttribute('data-toggle'));
@@ -1294,7 +1535,7 @@ function renderHolidays() {
 }
 
 /* =========================================================
-   8. 時間表渲染
+   8. 格子
    ========================================================= */
 const DAY_START = 8 * 60;
 const DAY_END = 23 * 60;
@@ -1306,7 +1547,6 @@ function renderHead() {
   h.innerHTML = '<div class="hcell time">時間</div>' +
     DAY_ZH.map((d, i) => `<div class="hcell">${d}<br><span style="font-size:9.5px;font-weight:400">${DAY_ABBR[i]}</span></div>`).join('');
 }
-
 function renderGrid() {
   const body = $('#gridBody');
   if (!body) return;
@@ -1340,17 +1580,13 @@ function renderGrid() {
       const isLate = c.kind !== 'event' && wn > 1;
       const cls = 'blk'
         + (c.kind === 'event' ? ' one' : (c.freq === 'biweekly' ? ' bi' : ''))
-        + (isLate ? ' late' : '')
-        + (state.selected === c.id ? ' sel' : '');
+        + (isLate ? ' late' : '') + (state.selected === c.id ? ' sel' : '');
       const label = c.code || c.title || '未命名';
       let freqTag;
-      if (c.kind === 'event') {
-        freqTag = '單次 ' + (c.date ? c.date.slice(5).replace('-', '/') : '未定');
-      } else if (wn > 0) {
-        freqTag = (c.freq === 'biweekly' ? '兩週一次' : '每週') + '·第' + wn + '週起';
-      } else {
-        freqTag = c.freq === 'biweekly' ? '兩週一次' : '每週';
-      }
+      if (c.kind === 'event') freqTag = '單次 ' + mmdd(c.date);
+      else if (wn > 0) freqTag = (c.freq === 'biweekly' ? '兩週一次' : '每週') + '·第' + wn + '週起';
+      else freqTag = c.freq === 'biweekly' ? '兩週一次' : '每週';
+
       html += `<div class="${cls}" data-id="${c.id}"
         style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px)">
         <b>${esc(label)}</b>
@@ -1366,17 +1602,82 @@ function renderGrid() {
   setText('#cntBadge', state.courses.length + ' 項');
 }
 
-function renderPrintSub() {
-  const a = anchorMonday();
-  const w = weeksCount();
-  setText('#printSub', (a ? `${a} 起 · 共 ${w} 週 · ` : '') + `列印於 ${todayYmd()}`);
+/* =========================================================
+   9. 清單（純 CSS Grid，不用 table）
+   ========================================================= */
+function sortKeyOf(c) {
+  if (c.kind === 'event' && c.date) return c.date + '|' + pad2(c.start);
+  return (firstDateOf(c) || '9999-12-31') + '|' + pad2(c.start);
+}
+function renderList() {
+  const body = $('#listBody');
+  if (!body) return;
+
+  const items = state.courses.slice().sort((a, b) => (sortKeyOf(a) < sortKeyOf(b) ? -1 : sortKeyOf(a) > sortKeyOf(b) ? 1 : 0));
+  if (!items.length) {
+    body.innerHTML = '<div class="lrow empty">還沒有任何課程</div>';
+    return;
+  }
+
+  let html = '';
+  for (const c of items) {
+    const eff = effectiveDates(c);
+    const fd = firstDateOf(c);
+    let dateCell, subCell = '';
+    if (c.kind === 'event') {
+      dateCell = mmdd(c.date);
+      subCell = c.date ? DAY_ZH[dowMonOfYmd(c.date)] : '';
+    } else {
+      const wn = weekNoOf(fd);
+      dateCell = wn >= 1 ? `第 ${wn} 週起` : '—';
+      subCell = fd ? mmdd(fd) + ' ' + DAY_ZH[dowMonOfYmd(fd)] : '';
+    }
+    const freq = c.kind === 'event'
+      ? (eff.kept.length ? '' : '<span style="color:#c00">已略過</span>')
+      : (c.freq === 'biweekly' ? '兩週一次' : '每週') + ` · ${eff.kept.length} 次`;
+
+    html += `<div class="lrow ${state.selected === c.id ? 'sel' : ''}" data-id="${c.id}">
+      <div class="c1">${esc(dateCell)}<div class="mu">${esc(subCell)}</div></div>
+      <div class="c2">${fmtMin(c.start)}–${fmtMin(c.end)}<div class="mu">${freq}</div></div>
+      <div class="c3"><b>${esc(c.title || '（未命名）')}</b>${c.code ? `<div class="mu">${esc(c.code)}</div>` : ''}</div>
+      <div class="hide-sm mu">${esc(c.lecturer || '')}</div>
+      <div class="hide-sm mu">${esc(c.room || '')}</div>
+      <div class="del" data-del="${c.id}">✕</div>
+    </div>`;
+  }
+  body.innerHTML = html;
+
+  body.querySelectorAll('.lrow[data-id]').forEach(row => {
+    row.addEventListener('click', e => {
+      if (e.target && e.target.getAttribute && e.target.getAttribute('data-del')) return;
+      state.selected = row.getAttribute('data-id');
+      renderAll();
+      const ed = $('#editor');
+      if (ed) ed.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+  body.querySelectorAll('[data-del]').forEach(x => {
+    x.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = x.getAttribute('data-del');
+      state.courses = state.courses.filter(c => c.id !== id);
+      if (state.selected === id) state.selected = null;
+      renderAll(); save();
+    });
+  });
+}
+function applyView() {
+  show('#gridWrap', state.view === 'grid');
+  show('#listWrap', state.view === 'list');
+  const g = $('#btnViewGrid'), l = $('#btnViewList');
+  if (g) g.classList.toggle('on', state.view === 'grid');
+  if (l) l.classList.toggle('on', state.view === 'list');
 }
 
 /* =========================================================
-   9. 拖曳
+   10. 拖曳
    ========================================================= */
 let drag = null;
-
 function bindBlocks() {
   $$('.blk').forEach(el => {
     el.addEventListener('pointerdown', e => {
@@ -1393,7 +1694,6 @@ function bindBlocks() {
       el.style.zIndex = 9;
       e.preventDefault();
     });
-
     el.addEventListener('pointermove', e => {
       if (!drag || drag.el !== el) return;
       const dy = e.clientY - drag.startY, dx = e.clientX - drag.startX;
@@ -1407,20 +1707,16 @@ function bindBlocks() {
       drag.newDay = Math.max(0, Math.min(6, drag.origDay + dDay));
       el.style.transform = `translate(${(drag.newDay - drag.origDay) * drag.colW}px, ${(drag.newStart - drag.origStart) * PPM}px)`;
     });
-
     const endDrag = () => {
       if (!drag || drag.el !== el) return;
       const c = state.courses.find(x => x.id === drag.id);
       if (c) {
         if (drag.moved && drag.newStart !== undefined) {
-          c.start = drag.newStart;
-          c.end = drag.newEnd;
+          c.start = drag.newStart; c.end = drag.newEnd;
           const delta = drag.newDay - drag.origDay;
-          if (c.kind === 'event' && c.date) {
-            c.date = addDaysYmd(c.date, delta);
-          } else {
+          if (c.kind === 'event' && c.date) c.date = addDaysYmd(c.date, delta);
+          else {
             c.day = drag.newDay;
-            /* 有第一堂日期就跟著平移，保持「第幾週」不變 */
             if (parseYMD(c.firstDate)) c.firstDate = addDaysYmd(c.firstDate, delta);
           }
         }
@@ -1435,7 +1731,7 @@ function bindBlocks() {
 }
 
 /* =========================================================
-   10. 編輯面板
+   11. 編輯
    ========================================================= */
 function buildWeekOptions(current) {
   const maxW = Math.max(24, weeksCount() + 4);
@@ -1447,74 +1743,53 @@ function buildWeekOptions(current) {
     sel.value = (current >= 1 && current <= maxW) ? String(current) : '';
   }
 }
-
 function renderEditor() {
   const box = $('#editor');
   if (!box) return;
   const c = state.courses.find(x => x.id === state.selected);
   if (!c) { box.classList.add('hidden'); return; }
   box.classList.remove('hidden');
-
   const isEvent = c.kind === 'event';
-  setText('#edKind', isEvent ? '單次行程' : '每週／隔週課程');
-  setVal('#eCode', c.code);
-  setVal('#eTitle', c.title);
-  setVal('#eLect', c.lecturer);
-  setVal('#eRoom', c.room);
-  setVal('#eDay', String(c.day));
-  setVal('#eDate', c.date || '');
-  setVal('#eStart', fmtMin(c.start));
-  setVal('#eEnd', fmtMin(c.end));
-  setVal('#eFreq', c.freq);
-  setVal('#eRemind', c.remind === null ? '' : String(c.remind));
-
+  setText('#edKind', isEvent ? '單次行程（日期式課表）' : '每週／隔週課程');
+  setVal('#eCode', c.code); setVal('#eTitle', c.title);
+  setVal('#eLect', c.lecturer); setVal('#eRoom', c.room);
+  setVal('#eDay', String(c.day)); setVal('#eDate', c.date || '');
+  setVal('#eStart', fmtMin(c.start)); setVal('#eEnd', fmtMin(c.end));
+  setVal('#eFreq', c.freq); setVal('#eRemind', c.remind === null ? '' : String(c.remind));
   const fd = firstDateOf(c);
   setVal('#eFirst', fd || '');
   buildWeekOptions(weekNoOf(fd));
-
-  show('#wDay', !isEvent);
-  show('#wDate', isEvent);
-  show('#wFreq', !isEvent);
-  show('#wFirst', !isEvent);
-  show('#wWeek', !isEvent);
+  show('#wDay', !isEvent); show('#wDate', isEvent);
+  show('#wFreq', !isEvent); show('#wFirst', !isEvent); show('#wWeek', !isEvent);
   show('#eSkipWrap', !isEvent);
-
   if (!isEvent) renderEditorSkip();
   renderFirstInfo(c);
 }
-
 function renderFirstInfo(c) {
   const box = $('#eFirstInfo');
   if (!box || !c) return;
   if (c.kind === 'event') {
-    box.textContent = '單次行程：' + (c.date || '（尚未設定日期）');
+    const d = c.date || '';
+    box.innerHTML = d
+      ? `單次行程：<b>${d}</b>（${DAY_ZH[dowMonOfYmd(d)]}）${weekNoOf(d) ? ' · 學期第 ' + weekNoOf(d) + ' 週' : ''}`
+      : '單次行程：<b>尚未設定日期</b>';
     return;
   }
-  const a = anchorMonday();
-  if (!a) { box.textContent = '尚未設定學期日期，無法推算第一堂。'; return; }
-
-  const fd = firstDateOf(c);
-  const wn = weekNoOf(fd);
-  const r = effectiveDates(c);
-  const freqTxt = c.freq === 'biweekly' ? '兩週一次' : '每週一次';
-
-  let txt = `${freqTxt} · 第一堂：<b>${fd}</b>（${DAY_ZH[dowMonOfYmd(fd)]}）`;
-  txt += wn >= 1 ? `· 學期<b>第 ${wn} 週</b>` : '（早於學期開始）';
+  if (!anchorMonday()) { box.textContent = '尚未設定學期日期，無法推算第一堂。'; return; }
+  const fd = firstDateOf(c), wn = weekNoOf(fd), r = effectiveDates(c);
+  let txt = `${c.freq === 'biweekly' ? '兩週一次' : '每週一次'} · 第一堂：<b>${fd}</b>（${DAY_ZH[dowMonOfYmd(fd)]}）`;
+  txt += wn >= 1 ? ` · 學期<b>第 ${wn} 週</b>` : '（早於學期開始）';
   txt += ` · 共 <b>${r.kept.length}</b> 次`;
-  if (r.excl.length) txt += ` · 已跳過 ${r.excl.length} 次（停課日）`;
+  if (r.excl.length) txt += ` · 已跳過 ${r.excl.length} 次`;
   if (state.settings.futureOnly) txt += ' · 匯出時只保留今天之後';
   box.innerHTML = txt;
 }
-
 function renderEditorSkip() {
   const c = state.courses.find(x => x.id === state.selected);
   const box = $('#eSkipChips');
   if (!c || !box) return;
   const list = (c.skip || []).slice().sort();
-  if (!list.length) {
-    box.innerHTML = '<span class="hint" style="margin:0">沒有額外停課日</span>';
-    return;
-  }
+  if (!list.length) { box.innerHTML = '<span class="hint" style="margin:0">沒有額外停課日</span>'; return; }
   box.innerHTML = list.map(d => `
     <span class="chip mini off" style="opacity:1">
       <b style="text-decoration:line-through">${d}</b>
@@ -1528,72 +1803,51 @@ function renderEditorSkip() {
     });
   });
 }
-
 function bindEditor() {
   const upd = fn => () => {
     const c = state.courses.find(x => x.id === state.selected);
     if (!c) return;
     fn(c);
-    renderGrid();
-    renderSemesterInfo();
-    renderOutput();
-    renderFirstInfo(c);
-    save();
+    renderGrid(); renderList(); renderSemesterInfo(); renderOutput(); renderFirstInfo(c); save();
   };
-
   on('#eCode', 'input', upd(c => c.code = $('#eCode').value.trim()));
   on('#eTitle', 'input', upd(c => c.title = $('#eTitle').value.trim()));
   on('#eLect', 'input', upd(c => c.lecturer = $('#eLect').value.trim()));
   on('#eRoom', 'input', upd(c => c.room = $('#eRoom').value.trim()));
-
-  /* 換星期：第一堂日期跟著平移，週數不變 */
   on('#eDay', 'change', () => {
     const c = state.courses.find(x => x.id === state.selected);
     if (!c) return;
-    const nd = +$('#eDay').value;
-    const od = blockDay(c);
+    const nd = +$('#eDay').value, od = blockDay(c);
     if (parseYMD(c.firstDate)) c.firstDate = addDaysYmd(c.firstDate, nd - od);
     c.day = nd;
-    renderGrid(); renderSemesterInfo(); renderOutput();
-    setVal('#eFirst', firstDateOf(c));
-    buildWeekOptions(weekNoOf(firstDateOf(c)));
+    renderGrid(); renderList(); renderSemesterInfo(); renderOutput();
+    setVal('#eFirst', firstDateOf(c)); buildWeekOptions(weekNoOf(firstDateOf(c)));
     renderFirstInfo(c); save();
   });
-
-  on('#eDate', 'change', upd(c => c.date = $('#eDate').value));
-
-  /* 第一堂日期：直接決定這門課從哪天開始 */
+  on('#eDate', 'change', () => {
+    const c = state.courses.find(x => x.id === state.selected);
+    if (!c) return;
+    c.date = $('#eDate') ? $('#eDate').value : '';
+    if (parseYMD(c.date)) c.day = dowMonOfYmd(c.date);
+    renderGrid(); renderList(); renderSemesterInfo(); renderOutput(); renderFirstInfo(c); save();
+  });
   on('#eFirst', 'change', () => {
     const c = state.courses.find(x => x.id === state.selected);
     if (!c) return;
     const v = $('#eFirst').value;
-    if (parseYMD(v)) {
-      c.firstDate = v;
-      c.day = dowMonOfYmd(v);
-      setVal('#eDay', String(c.day));
-    } else {
-      c.firstDate = '';
-    }
-    renderGrid(); renderSemesterInfo(); renderOutput();
-    buildWeekOptions(weekNoOf(c.firstDate));
-    renderFirstInfo(c); save();
+    if (parseYMD(v)) { c.firstDate = v; c.day = dowMonOfYmd(v); setVal('#eDay', String(c.day)); }
+    else c.firstDate = '';
+    renderGrid(); renderList(); renderSemesterInfo(); renderOutput();
+    buildWeekOptions(weekNoOf(c.firstDate)); renderFirstInfo(c); save();
   });
-
-  /* 用「學期第幾週」快速設定第一堂 */
   on('#eWeek', 'change', () => {
     const c = state.courses.find(x => x.id === state.selected);
     if (!c) return;
-    const n = +$('#eWeek').value;
-    const a = anchorMonday();
-    if (!a || !n) { c.firstDate = ''; }
-    else {
-      c.firstDate = addDaysYmd(a, (n - 1) * 7 + c.day);
-      setVal('#eFirst', c.firstDate);
-    }
-    renderGrid(); renderSemesterInfo(); renderOutput();
-    renderFirstInfo(c); save();
+    const n = +$('#eWeek').value, a = anchorMonday();
+    if (!a || !n) c.firstDate = '';
+    else { c.firstDate = addDaysYmd(a, (n - 1) * 7 + c.day); setVal('#eFirst', c.firstDate); }
+    renderGrid(); renderList(); renderSemesterInfo(); renderOutput(); renderFirstInfo(c); save();
   });
-
   on('#eStart', 'change', upd(c => {
     c.start = minOf($('#eStart').value);
     if (c.end <= c.start) c.end = Math.min(DAY_END, c.start + 50);
@@ -1606,7 +1860,6 @@ function bindEditor() {
   on('#eRemind', 'change', upd(c => {
     c.remind = $('#eRemind').value === '' ? null : +$('#eRemind').value;
   }));
-
   on('#eAddSkip', 'click', () => {
     const c = state.courses.find(x => x.id === state.selected);
     const d = $('#eSkipDate') ? $('#eSkipDate').value : '';
@@ -1615,7 +1868,6 @@ function bindEditor() {
     $('#eSkipDate').value = '';
     renderEditorSkip(); renderFirstInfo(c); renderOutput(); save();
   });
-
   on('#eDel', 'click', () => {
     state.courses = state.courses.filter(x => x.id !== state.selected);
     state.selected = null;
@@ -1626,24 +1878,22 @@ function bindEditor() {
 }
 
 /* =========================================================
-   11. 學期
+   12. 學期
    ========================================================= */
 function renderSemesterInfo() {
   const a = anchorMonday();
   const w = weeksCount();
   if (!a) { setHTML('#semInfo', '請填寫學期開始日。'); setHTML('#semWarn', ''); return; }
-
-  let total = 0, skippedEx = 0;
+  let total = 0, skippedEx = 0, nEvent = 0;
   state.courses.forEach(c => {
+    if (c.kind === 'event') nEvent++;
     const r = effectiveDates(c);
-    total += r.kept.length;
-    skippedEx += r.excl.length;
+    total += r.kept.length; skippedEx += r.excl.length;
   });
   const holidayOn = (state.holidays || []).filter(h => h.off).length;
-
   setHTML('#semInfo',
     `第一週：<b>${a}（週一）</b>　·　共 <b>${w}</b> 週　·　最後一週：<b>${w ? addDaysYmd(a, (w - 1) * 7) : '—'}</b><br>
-     課程／行程 <b>${state.courses.length}</b> 項　·　實際會產生 <b>${total}</b> 個行程
+     課程／行程 <b>${state.courses.length}</b> 項（單次 <b>${nEvent}</b>）　·　實際會產生 <b>${total}</b> 個行程
      ${skippedEx ? '　·　因停課跳過 <b>' + skippedEx + '</b> 次' : ''}
      ${holidayOn ? '　·　停課日 <b>' + holidayOn + '</b> 天' : ''}`);
 
@@ -1651,78 +1901,55 @@ function renderSemesterInfo() {
   if (mondayOfYmd(state.semester.start) !== state.semester.start)
     msgs.push('開始日不是星期一，已自動對齊到該週的 <b>' + a + '</b>。');
   if (w <= 0) msgs.push('結束日早於開始日，請重新設定。');
-
   const bad = state.courses.filter(c => c.end <= c.start);
   if (bad.length) msgs.push('有 ' + bad.length + ' 項的結束時間早於開始時間。');
-
   const noDate = state.courses.filter(c => c.kind === 'event' && !c.date);
   if (noDate.length) msgs.push('有 ' + noDate.length + ' 個單次行程還沒設定日期。');
-
   const outRange = state.courses.filter(c => c.kind === 'event' && c.date && !courseDates(c, a, state.semester.end).length);
-  if (outRange.length) msgs.push('有 ' + outRange.length + ' 個單次行程的日期不在學期範圍內，不會被匯出。');
-
+  if (outRange.length) msgs.push('有 ' + outRange.length + ' 個單次行程晚於學期結束日，不會被匯出。');
   const lateStart = state.courses.filter(c => c.kind !== 'event' && weekNoOf(firstDateOf(c)) > 1);
-  if (lateStart.length) {
-    msgs.push('有 ' + lateStart.length + ' 門課不是從第 1 週開始（格子上有橙色左邊條），請確認是否正確。');
+  if (lateStart.length) msgs.push('有 ' + lateStart.length + ' 門課不是從第 1 週開始。');
+  if (state.settings.futureOnly) {
+    const allPast = state.courses.filter(c => effectiveDates(c).kept.length === 0 && effectiveDates(c).all.length).length;
+    if (allPast) msgs.push('有 ' + allPast + ' 項全部落在今天之前，因為「只匯入今天以後」而沒有行程。');
   }
 
   for (let d = 0; d < 7 && msgs.length < 4; d++) {
-    const list = state.courses.filter(c => blockDay(c) === d).sort((x, y) => x.start - y.start);
+    const list = state.courses.filter(c => blockDay(c) === d && c.kind !== 'event').sort((x, y) => x.start - y.start);
     outer:
-    for (let i = 0; i < list.length; i++) {
-      for (let j = i + 1; j < list.length; j++) {
+    for (let i = 0; i < list.length; i++)
+      for (let j = i + 1; j < list.length; j++)
         if (list[j].start < list[i].end) {
           msgs.push(`時間衝突：${DAY_ZH[d]}「${list[i].code || list[i].title}」與「${list[j].code || list[j].title}」重疊。`);
           break outer;
         }
-      }
-    }
   }
   setHTML('#semWarn', msgs.length ? '<div class="warn">' + msgs.slice(0, 5).join('<br>') + '</div>' : '');
 }
-
 function bindSemester() {
   on('#sStart', 'change', () => {
     const v = $('#sStart').value;
     if (!v) return;
     state.semester.start = v;
-    if (state.semester.autoEnd) {
-      state.semester.end = addDaysYmd(v, 104);
-      setVal('#sEnd', state.semester.end);
-    }
-    renderSemesterInfo(); renderHolidays(); renderOutput(); renderPrintSub();
-    renderFirstInfo(state.courses.find(x => x.id === state.selected));
-    save();
+    if (state.semester.autoEnd) { state.semester.end = addDaysYmd(v, 104); setVal('#sEnd', state.semester.end); }
+    renderSemesterInfo(); renderHolidays(); renderOutput(); renderList(); renderPrintSub();
+    renderFirstInfo(state.courses.find(x => x.id === state.selected)); save();
     if (!state.holidays.length) loadHKHolidays(false);
   });
-
   on('#sEnd', 'change', () => {
     const v = $('#sEnd').value;
     if (!v) return;
-    state.semester.end = v;
-    state.semester.autoEnd = false;
-    renderSemesterInfo(); renderHolidays(); renderOutput();
-    renderFirstInfo(state.courses.find(x => x.id === state.selected));
-    save();
+    state.semester.end = v; state.semester.autoEnd = false;
+    renderSemesterInfo(); renderHolidays(); renderOutput(); renderList();
+    renderFirstInfo(state.courses.find(x => x.id === state.selected)); save();
   });
-
-  on('#sTz', 'change', () => {
-    state.semester.tz = $('#sTz').value;
-    renderOutput(); save();
-  });
-
-  on('#sRemind', 'change', () => {
-    state.settings.remindMin = +$('#sRemind').value;
-    renderOutput(); save();
-  });
-
+  on('#sTz', 'change', () => { state.semester.tz = $('#sTz').value; renderOutput(); save(); });
+  on('#sRemind', 'change', () => { state.settings.remindMin = +$('#sRemind').value; renderOutput(); save(); });
   on('#futureOnly', 'change', e => {
     state.settings.futureOnly = e.target.checked;
-    renderSemesterInfo(); renderOutput();
-    renderFirstInfo(state.courses.find(x => x.id === state.selected));
-    save();
+    renderSemesterInfo(); renderOutput(); renderList();
+    renderFirstInfo(state.courses.find(x => x.id === state.selected)); save();
   });
-
   on('#btnLoadHoli', 'click', () => loadHKHolidays(true));
   on('#btnAllHoli', 'click', () => {
     (state.holidays || []).forEach(h => h.off = true);
@@ -1744,19 +1971,14 @@ function bindSemester() {
 }
 
 /* =========================================================
-   12. ICS
+   13. ICS
    ========================================================= */
 const TZ_INFO = {
-  'Asia/Hong_Kong': ['+0800', 'HKT'],
-  'Asia/Taipei': ['+0800', 'CST'],
-  'Asia/Macau': ['+0800', 'CST'],
-  'Asia/Shanghai': ['+0800', 'CST'],
-  'Asia/Singapore': ['+0800', 'SGT'],
-  'Asia/Tokyo': ['+0900', 'JST'],
-  'Asia/Seoul': ['+0900', 'KST'],
-  'Etc/UTC': ['+0000', 'UTC']
+  'Asia/Hong_Kong': ['+0800', 'HKT'], 'Asia/Taipei': ['+0800', 'CST'],
+  'Asia/Macau': ['+0800', 'CST'], 'Asia/Shanghai': ['+0800', 'CST'],
+  'Asia/Singapore': ['+0800', 'SGT'], 'Asia/Tokyo': ['+0900', 'JST'],
+  'Asia/Seoul': ['+0900', 'KST'], 'Etc/UTC': ['+0000', 'UTC']
 };
-
 function icsEsc(t) {
   return String(t ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\\;')
     .replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
@@ -1786,13 +2008,12 @@ function triggerStr(min) {
   return `-PT${m}M`;
 }
 function uidOf(c) {
-  const slug = String(c.code || c.title || 'item').replace(/[^A-Za-z0-9]/g, '') || 'item';
+  const slug = String(c.code || c.title || 'item').replace(/[^A-Za-z0-9]/g, '').slice(0, 24) || 'item';
   const tail = c.kind === 'event'
     ? (c.date || 'nodate').replace(/-/g, '')
     : (blockDay(c) + '-' + c.start);
   return `t2c-${slug}-${tail}@timetable2cal`;
 }
-
 function buildICS() {
   const anchor = anchorMonday();
   const endYmd = state.semester.end;
@@ -1801,24 +2022,11 @@ function buildICS() {
   const until = `${String(endYmd || '').replace(/-/g, '')}T235959Z`;
   const stamp = icsUtcNow();
 
-  const L = [];
-  L.push('BEGIN:VCALENDAR');
-  L.push('VERSION:2.0');
-  L.push('PRODID:-//Timetable2Cal//ZH-TW//EN');
-  L.push('CALSCALE:GREGORIAN');
-  L.push('METHOD:PUBLISH');
-  L.push('X-WR-CALNAME:我的課表');
-  L.push('X-WR-TIMEZONE:' + tz);
-  L.push('BEGIN:VTIMEZONE');
-  L.push('TZID:' + tz);
-  L.push('X-LIC-LOCATION:' + tz);
-  L.push('BEGIN:STANDARD');
-  L.push('DTSTART:19700101T000000');
-  L.push('TZOFFSETFROM:' + info[0]);
-  L.push('TZOFFSETTO:' + info[0]);
-  L.push('TZNAME:' + info[1]);
-  L.push('END:STANDARD');
-  L.push('END:VTIMEZONE');
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Timetable2Cal//ZH-TW//EN',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:我的課表', 'X-WR-TIMEZONE:' + tz,
+    'BEGIN:VTIMEZONE', 'TZID:' + tz, 'X-LIC-LOCATION:' + tz, 'BEGIN:STANDARD',
+    'DTSTART:19700101T000000', 'TZOFFSETFROM:' + info[0], 'TZOFFSETTO:' + info[0],
+    'TZNAME:' + info[1], 'END:STANDARD', 'END:VTIMEZONE'];
 
   const skipped = [];
   let count = 0;
@@ -1829,19 +2037,16 @@ function buildICS() {
     const first = eff.kept[0];
     const fd = firstDateOf(c);
     const wn = weekNoOf(fd);
-
     const summary = [c.code, c.title].filter(Boolean).join(' ') || '課堂';
     const desc = [];
     if (c.lecturer) desc.push('Lecturer: ' + c.lecturer);
-    if (c.room) desc.push('Room: ' + c.room);
-    if (c.kind === 'event') {
-      desc.push('單次行程');
-    } else {
+    if (c.room) desc.push('Venue: ' + c.room);
+    if (c.kind === 'event') desc.push('單次行程');
+    else {
       desc.push(c.freq === 'biweekly' ? '頻率：兩週一次' : '頻率：每週一次');
       if (fd) desc.push('第一堂：' + fd + (wn >= 1 ? `（學期第 ${wn} 週）` : ''));
     }
     if (eff.excl.length) desc.push('已跳過：' + eff.excl.join(', '));
-
     const remind = c.remind === null ? state.settings.remindMin : c.remind;
 
     L.push('BEGIN:VEVENT');
@@ -1850,7 +2055,6 @@ function buildICS() {
     L.push('DTSTAMP:' + stamp);
     L.push('DTSTART;TZID=' + tz + ':' + icsLocalStamp(first, c.start));
     L.push('DTEND;TZID=' + tz + ':' + icsLocalStamp(first, c.end));
-
     if (c.kind !== 'event') {
       L.push('RRULE:' + (c.freq === 'biweekly'
         ? `FREQ=WEEKLY;INTERVAL=2;UNTIL=${until}`
@@ -1858,12 +2062,10 @@ function buildICS() {
       const ex = eff.excl.filter(d => d >= first);
       if (ex.length) L.push('EXDATE;TZID=' + tz + ':' + ex.map(d => icsLocalStamp(d, c.start)).join(','));
     }
-
     L.push('SUMMARY:' + icsEsc(summary));
-    if (c.room) L.push('LOCATION:' + icsEsc((c.kind === 'event' ? '' : 'Room ') + c.room));
+    if (c.room) L.push('LOCATION:' + icsEsc(c.room));
     L.push('DESCRIPTION:' + icsEsc(desc.join('\n')));
     L.push('TRANSP:OPAQUE');
-
     if (remind > 0) {
       L.push('BEGIN:VALARM');
       L.push('ACTION:DISPLAY');
@@ -1871,127 +2073,117 @@ function buildICS() {
       L.push('TRIGGER:' + triggerStr(remind));
       L.push('END:VALARM');
     }
-
     L.push('END:VEVENT');
     count += eff.kept.length;
   }
-
   L.push('END:VCALENDAR');
   return { ics: L.map(foldLine).join('\r\n') + '\r\n', skipped, count };
 }
 
 /* =========================================================
-   13. 匯出區
+   14. 匯出
    ========================================================= */
 function renderOutput() {
   const anchor = anchorMonday();
   const box = $('#summary');
   if (!box) return;
-
   if (!state.courses.length) {
-    box.innerHTML = '<div class="srow"><span class="st">還沒有課程。回到第 2 區新增，或按「載入我的課表示例」。</span></div>';
-    setHTML('#importHint', '');
-    setHTML('#exportInfo', '');
+    box.innerHTML = '<div class="srow"><span class="st">還沒有課程。回到第 2 區新增，或載入示範資料。</span></div>';
+    setHTML('#importHint', ''); setHTML('#exportInfo', '');
     return;
   }
   if (!anchor || !state.semester.end) {
     box.innerHTML = '<div class="srow"><span class="st">請先在第 3 區設定學期開始與結束日期。</span></div>';
     return;
   }
-
   const built = buildICS();
   let rows = '';
-  const sorted = state.courses.slice().sort((a, b) => blockDay(a) - blockDay(b) || a.start - b.start);
+  const sorted = state.courses.slice().sort((a, b) => (sortKeyOf(a) < sortKeyOf(b) ? -1 : 1));
   for (const c of sorted) {
     const eff = effectiveDates(c);
-    const fd = firstDateOf(c);
-    const wn = weekNoOf(fd);
-    const freq = c.kind === 'event'
-      ? '單次·' + (c.date || '未定')
-      : (c.freq === 'biweekly' ? '兩週一次' : '每週') + (wn >= 1 ? `·第${wn}週起` : '');
     const remind = c.remind === null ? state.settings.remindMin : c.remind;
+    let freq;
+    if (c.kind === 'event') freq = '單次 ' + mmdd(c.date);
+    else {
+      const wn = weekNoOf(firstDateOf(c));
+      freq = (c.freq === 'biweekly' ? '兩週一次' : '每週') + (wn >= 1 ? `（第 ${wn} 週起）` : '');
+    }
     rows += `<div class="srow">
       <span class="sc">${esc(c.code || '—')}</span>
       <span class="st">${esc(c.title || '（未命名）')}
         <br><span style="color:#6e6e73;font-size:11.5px">${DAY_ZH[blockDay(c)]} ${fmtMin(c.start)}–${fmtMin(c.end)}
-        ${c.room ? ' · Room ' + esc(c.room) : ''}${c.lecturer ? ' · ' + esc(c.lecturer) : ''}
-        ${c.kind !== 'event' && fd ? ' · 第一堂 ' + fd : ''}</span></span>
+        ${c.room ? ' · ' + esc(c.room) : ''}${c.lecturer ? ' · ' + esc(c.lecturer) : ''}</span></span>
       <span class="sm">${freq}<br>${eff.kept.length} 次${eff.excl.length ? '（跳過 ' + eff.excl.length + '）' : ''}
         <br>${remind > 0 ? '提醒 ' + remind + ' 分前' : '不提醒'}</span>
     </div>`;
   }
   box.innerHTML = rows;
 
-  let html = `<div class="ok">將產生 <b>${built.count}</b> 個行程${
-    built.skipped.length ? `，另有 ${built.skipped.length} 項在學期範圍內沒有課堂（已略過）` : ''}。
-    提醒：${state.settings.remindMin > 0 ? '預設 ' + state.settings.remindMin + ' 分鐘前' : '預設不提醒'}${
-    state.settings.futureOnly ? '　·　已開啟「只匯入今天以後」' : ''}</div>`;
+  let html = '';
+  if (built.count === 0) {
+    html += `<div class="warn">目前會產生 <b>0</b> 個行程。最常見原因：所有課堂的日期都在今天之前，
+      而「只匯入今天以後」是開著的。<br>請把上面的開關<b>取消勾選</b>，就會把整學期的課堂都匯入。</div>`;
+  } else {
+    html += `<div class="ok">將產生 <b>${built.count}</b> 個行程${
+      built.skipped.length ? `，另有 ${built.skipped.length} 項沒有行程（已略過）` : ''}。
+      提醒：${state.settings.remindMin > 0 ? '預設 ' + state.settings.remindMin + ' 分鐘前' : '預設不提醒'}${
+      state.settings.futureOnly ? '　·　已開啟「只匯入今天以後」' : ''}</div>`;
+  }
 
   if (state.lastExport) {
     const t = new Date(state.lastExport.at);
     const when = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())} ${pad2(t.getHours())}:${pad2(t.getMinutes())}`;
     html += (state.lastExport.fp === hashStr(built.ics))
       ? `<div class="warn blue">上次匯出：<b>${when}</b>。內容與當時完全相同 —— 若已匯入就不必再做一次。</div>`
-      : `<div class="warn">上次匯出：<b>${when}</b>，內容已改變。重新匯入前建議先刪掉舊的「我的課表」行事曆（見下方步驟）。</div>`;
+      : `<div class="warn">上次匯出：<b>${when}</b>，內容已改變。重新匯入前建議先刪掉舊的「我的課表」行事曆。</div>`;
   }
   setHTML('#exportInfo', html);
-
   setHTML('#importHint', state.settings.futureOnly
     ? 'iPhone／iPad：按「下載 .ics 檔」後點一下檔案，系統會問要不要加入行事曆；或直接按「直接加入行事曆」。'
-    : '⚠️ 「只匯入今天以後」已關閉，整學期（含已過去的）都會匯入，較容易和舊資料重疊。');
+    : '「只匯入今天以後」已關閉，會把整學期（含已過去的）都匯入。');
 }
-
 function downloadICS(ics) {
   const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = 'my-timetable.ics';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  a.href = url; a.download = 'my-timetable.ics';
+  document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
-
 function openCalendar(ics) {
   const ua = navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  if (isIOS) {
-    window.location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
-  } else {
+  if (isIOS) window.location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+  else {
     downloadICS(ics);
     setHTML('#importHint', '已下載 <b>my-timetable.ics</b>，雙擊它即可加入 Mac 行事曆。');
   }
 }
-
 function markExported(ics) {
   state.exportSeq = (state.exportSeq || 0) + 1;
   state.lastExport = { at: new Date().toISOString(), fp: hashStr(ics) };
-  save();
-  renderOutput();
+  save(); renderOutput();
 }
 
 /* =========================================================
-   14. 列印
+   15. 列印
    ========================================================= */
 let printing = false;
 function doPrint() {
   if (printing) return;
   printing = true;
-  renderPrintSub();
+  const oldView = state.view;
+  state.view = 'grid'; applyView(); renderPrintSub();
   const oldPPM = PPM;
-  PPM = 0.62;
-  renderGrid();
+  PPM = 0.62; renderGrid();
   document.body.classList.add('printing');
-
   let restored = false;
   const restore = () => {
     if (restored) return;
-    restored = true;
-    printing = false;
+    restored = true; printing = false;
     document.body.classList.remove('printing');
-    PPM = oldPPM;
-    renderGrid();
+    PPM = oldPPM; renderGrid();
+    state.view = oldView; applyView();
     window.removeEventListener('afterprint', restore);
   };
   window.addEventListener('afterprint', restore);
@@ -2002,18 +2194,16 @@ function doPrint() {
 }
 
 /* =========================================================
-   15. 初始化
+   16. 初始化
    ========================================================= */
-function renderAll() {
-  renderHead();
-  renderGrid();
-  renderEditor();
-  renderSemesterInfo();
-  renderHolidays();
-  renderOutput();
-  renderPrintSub();
+function renderPrintSub() {
+  const a = anchorMonday(), w = weeksCount();
+  setText('#printSub', (a ? `${a} 起 · 共 ${w} 週 · ` : '') + `列印於 ${todayYmd()}`);
 }
-
+function renderAll() {
+  renderHead(); renderGrid(); renderList(); renderEditor();
+  renderSemesterInfo(); renderHolidays(); renderOutput(); renderPrintSub(); applyView();
+}
 function bindTop() {
   $$('.stepper button').forEach(b => {
     b.addEventListener('click', () => {
@@ -2023,9 +2213,8 @@ function bindTop() {
   });
 
   const dz = $('#dz'), fileInput = $('#file');
-  const pick = () => { if (fileInput) fileInput.click(); };
   if (dz) {
-    dz.addEventListener('click', pick);
+    dz.addEventListener('click', () => { if (fileInput) fileInput.click(); });
     dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
     dz.addEventListener('dragleave', () => dz.classList.remove('over'));
     dz.addEventListener('drop', e => {
@@ -2040,7 +2229,6 @@ function bindTop() {
       fileInput.value = '';
     });
   }
-
   document.addEventListener('paste', e => {
     const items = (e.clipboardData && e.clipboardData.items) || [];
     for (const it of items) {
@@ -2051,72 +2239,92 @@ function bindTop() {
     }
   });
 
+  on('#btnRaw', 'click', () => {
+    const el = $('#rawText');
+    if (!el) return;
+    el.classList.toggle('hidden');
+    if (!el.classList.contains('hidden') && !lastRawText) el.textContent = '（還沒有辨識內容）';
+  });
+
   on('#btnDemo', 'click', () => {
     state.courses = DEMO.map(d => mkCourse({
       code: d.code, title: d.title, lecturer: d.lecturer, room: d.room,
       day: d.day, start: minOf(d.start), end: minOf(d.end)
     }));
-    state.selected = null;
+    state.selected = null; state.view = 'grid';
     renderAll(); save();
     showProg(true);
-    if ($('#progLog')) $('#progLog').textContent = '已載入示範資料（Fall 2026 課表）。請在第 2 區核對。';
-    const s2 = $('#step2');
-    if (s2) s2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if ($('#progLog')) $('#progLog').textContent = '已載入週課表示例。';
+    const s2 = $('#step2'); if (s2) s2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  on('#btnDemoSession', 'click', () => {
+    state.courses = DEMO_SESSIONS.map(d => mkCourse({
+      kind: 'event', date: d.date, code: d.code, title: d.title,
+      lecturer: d.lecturer, room: d.room, start: minOf(d.start), end: minOf(d.end)
+    }));
+    state.selected = null; state.view = 'list';
+    autofitSemester(state.courses);
+    renderAll(); save();
+    showProg(true);
+    if ($('#progLog')) $('#progLog').textContent = '已載入日期式課表示例（9 堂）。';
+    const s2 = $('#step2'); if (s2) s2.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   on('#btnPaste', 'click', () => { const b = $('#pasteBox'); if (b) b.classList.toggle('hidden'); });
 
   on('#btnParseText', 'click', () => {
-    const list = parsePlainText($('#pasteText') ? $('#pasteText').value : '');
+    const txt = $('#pasteText') ? $('#pasteText').value : '';
     showProg(true);
     if ($('#progLog')) $('#progLog').textContent = '';
-    logLine('解析文字：找到 ' + list.length + ' 行課程');
+    logLine('貼上內容長度：' + txt.length + ' 字元');
+    const dated = parseDatedText(txt);
+    logLine('日期式解析：' + dated.length + ' 筆');
+    let list = dated;
+    if (!list.length) {
+      list = parsePlainText(txt);
+      logLine('週課表解析：' + list.length + ' 筆');
+    }
+    setRawText(txt.split('\n').slice(0, 400).join('\n'));
     finishParse(list);
   });
 
+  on('#btnViewGrid', 'click', () => { state.view = 'grid'; applyView(); save(); });
+  on('#btnViewList', 'click', () => { state.view = 'list'; applyView(); save(); });
+
   on('#btnAdd', 'click', () => {
     const c = mkCourse({ kind: 'class', title: '新課程', day: 0, start: 540, end: 630 });
-    state.courses.push(c);
-    state.selected = c.id;
-    renderAll(); save();
-    scrollToEditor();
+    state.courses.push(c); state.selected = c.id;
+    renderAll(); save(); scrollToEditor();
   });
-
   on('#btnAddEvent', 'click', () => {
     const c = mkCourse({ kind: 'event', title: '考試／行程', date: todayYmd(), start: 600, end: 660 });
-    state.courses.push(c);
-    state.selected = c.id;
-    renderAll(); save();
-    scrollToEditor();
+    state.courses.push(c); state.selected = c.id;
+    renderAll(); save(); scrollToEditor();
   });
-
   on('#btnPrint', 'click', doPrint);
-
   on('#btnClear', 'click', () => {
     if (!state.courses.length) return;
     if (!confirm('確定清空所有課程與行程？')) return;
-    state.courses = [];
-    state.selected = null;
+    state.courses = []; state.selected = null;
     renderAll(); save();
   });
-
   on('#btnDownload', 'click', () => {
     const built = buildICS();
-    if (!built.count) { alert('目前沒有可匯出的行程，請先檢查學期日期與課程。'); return; }
-    downloadICS(built.ics);
-    markExported(built.ics);
-    if (built.skipped.length) {
-      setHTML('#importHint', '⚠️ 有 ' + built.skipped.length + ' 項沒有產生行程（超出學期範圍，或已被全部停課）。');
+    if (!built.count) {
+      alert('目前沒有可匯出的行程。\n通常是「只匯入今天以後」把已過去的課堂都過濾掉了，請取消勾選再試。');
+      return;
     }
+    downloadICS(built.ics); markExported(built.ics);
   });
-
   on('#btnAddCal', 'click', () => {
     const built = buildICS();
-    if (!built.count) { alert('目前沒有可匯出的行程，請先檢查學期日期與課程。'); return; }
-    openCalendar(built.ics);
-    markExported(built.ics);
+    if (!built.count) {
+      alert('目前沒有可匯出的行程。\n通常是「只匯入今天以後」把已過去的課堂都過濾掉了，請取消勾選再試。');
+      return;
+    }
+    openCalendar(built.ics); markExported(built.ics);
   });
-
   on('#btnIcsText', 'click', () => {
     const pre = $('#icsPreview');
     if (!pre) return;
@@ -2124,26 +2332,21 @@ function bindTop() {
     pre.classList.toggle('hidden');
   });
 }
-
 function scrollToEditor() {
   const ed = $('#editor');
   if (ed) ed.scrollIntoView({ behavior: 'smooth', block: 'center' });
   setTimeout(() => { const t = $('#eTitle'); if (t) t.focus(); }, 250);
 }
-
 function init() {
   try {
     const mon = mondayOfYmd(ymdOf(new Date()));
     state.semester.start = addDaysYmd(mon, -56);
     state.semester.end = addDaysYmd(state.semester.start, 104);
-
     restore();
-
     if (!parseYMD(state.semester.start)) {
       state.semester.start = addDaysYmd(mon, -56);
       state.semester.end = addDaysYmd(state.semester.start, 104);
     }
-
     setVal('#sStart', state.semester.start);
     setVal('#sEnd', state.semester.end);
     setVal('#sTz', state.semester.tz);
@@ -2151,27 +2354,19 @@ function init() {
     const fo = $('#futureOnly');
     if (fo) fo.checked = !!state.settings.futureOnly;
 
-    bindTop();
-    bindEditor();
-    bindSemester();
-
+    bindTop(); bindEditor(); bindSemester();
     renderAll();
 
     const tag = $('#readyTag');
     if (tag) tag.classList.remove('hidden');
-
     if (!state.holidays.length) setTimeout(() => loadHKHolidays(false), 800);
   } catch (err) {
     console.error(err);
     showFatal(err && err.message ? err.message : String(err));
   }
 }
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
 </script>
 </body>
 </html>
