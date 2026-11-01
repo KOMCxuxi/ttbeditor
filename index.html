@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>課表 → Apple 行事曆</title>
-<!-- 單檔應用，完整原始碼即本檔案 -->
+<!--
+  單檔應用，完整原始碼即本檔案。
+  本檔案不含任何使用者的課表資料；所有資料只存在瀏覽器 localStorage。
+-->
 <style>
 *{box-sizing:border-box}
 :root{--bg:#f5f5f7;--card:#fff;--ink:#1d1d1f;--muted:#6e6e73;--line:#e3e3e8;
@@ -79,7 +82,7 @@ box-shadow:0 1px 2px rgba(0,0,0,.05)}
 .blk b{display:block;font-weight:700;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .blk span{display:block;font-size:9.5px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* ===== 清單：用 CSS Grid，唔用 table ===== */
+/* ===== 清單：CSS Grid ===== */
 .lwrap{overflow:auto;max-height:66vh;border:1px solid var(--line);border-radius:12px;background:#fff}
 .lhead,.lrow{display:grid;grid-template-columns:78px 104px minmax(0,1fr) 140px 84px 34px;
 gap:10px;align-items:start;padding:9px 12px}
@@ -197,15 +200,13 @@ footer{text-align:center;color:#9a9aa0;font-size:11.5px;margin-top:28px;line-hei
     </div>
 
     <div class="row">
-      <button class="btn ghost" id="btnDemo">載入週課表示例（8 門課）</button>
-      <button class="btn ghost" id="btnDemoSession">載入日期式課表示例（9 堂）</button>
       <button class="btn ghost" id="btnPaste">貼上文字版課表（最準）</button>
       <button class="btn ghost" id="btnRaw">顯示橫列重組結果</button>
     </div>
 
     <div class="hint" style="margin-top:10px">
-      💡 「顯示橫列重組結果」會列出 OCR 抓到的<b>每一個水平列</b>（左邊是該列的 Y 座標），
-      可以確認程式有沒有正確把同一行的字歸在一起。
+      💡 最準的做法：在學校網頁上把課表表格整段選取 → 複製 → 貼進下面的框 → 按「解析這段文字」。
+      <br>「顯示橫列重組結果」會列出 OCR 抓到的<b>每一個水平列</b>（含該列的 Y 座標）。
     </div>
 
     <div id="readyTag" class="hidden">✅ 程式已就緒</div>
@@ -396,7 +397,7 @@ footer{text-align:center;color:#9a9aa0;font-size:11.5px;margin-top:28px;line-hei
   </section>
 
   <footer>
-    所有資料只留在你的瀏覽器（localStorage）。<br>
+    本檔案不含任何個人課表資料；你輸入的內容只留在這台裝置的瀏覽器（localStorage）。<br>
     ICS 依 RFC 5545 產生，適用 Apple 行事曆、Google 行事曆、Outlook。
   </footer>
 
@@ -416,7 +417,7 @@ function showFatal(msg) {
 }
 window.addEventListener('error', e => {
   const m = e && e.message ? String(e.message) : '';
-  if (!m || /^script error\.?$/i.test(m)) return;   /* 跨網域資源的雜訊，不影響功能 */
+  if (!m || /^script error\.?$/i.test(m)) return;
   showFatal(m);
 });
 window.addEventListener('unhandledrejection', e => {
@@ -574,32 +575,7 @@ function restore() {
 }
 
 /* =========================================================
-   3. 示範資料
-   ========================================================= */
-const DEMO = [
-  { code: 'ENG211.046', title: 'ENGLISH WRITING (1)', lecturer: 'CHAN,MARIA', day: 4, start: '09:10', end: '11:50', room: '113' },
-  { code: 'GEC106.001', title: 'PERSONAL FINANCE AND TAXATION', lecturer: 'LEE,SP', day: 3, start: '12:55', end: '15:35', room: 'RHB103' },
-  { code: 'SW201.002', title: 'SW INTERVENTION I - MICRO PRACTICE', lecturer: 'CHOW,LINA', day: 1, start: '16:35', end: '18:15', room: 'RLB502' },
-  { code: 'SW201T.002', title: 'SW INTERVENTION I - MICRO PRACTICE', lecturer: 'CHOW,LINA', day: 0, start: '12:55', end: '14:40', room: 'LG403' },
-  { code: 'SW221.002', title: 'SW INTERVENTION II - MEZZO PRACTICE', lecturer: 'TAN,HM', day: 3, start: '10:05', end: '11:50', room: 'RLB502' },
-  { code: 'SW221T.005', title: 'SW INTERVENTION II - MEZZO PRACTICE', lecturer: 'CHUNG,KH', day: 0, start: '14:45', end: '16:30', room: '101' },
-  { code: 'SW241.002', title: 'SW INTERVENTION III - MACRO PRACTICE', lecturer: 'CHUNG,YK', day: 1, start: '12:55', end: '14:40', room: 'RLB502' },
-  { code: 'SW241T.004', title: 'SW INTERVENTION III - MACRO PRACTICE', lecturer: 'CHUNG,YK', day: 4, start: '13:50', end: '15:35', room: 'LG401' }
-];
-const DEMO_SESSIONS = [
-  { date: '2026-11-03', start: '11:30', end: '13:30', code: 'PBL', title: 'PBL: COPD', lecturer: 'Ms Jody Chu (Gp1); Dr. May Lam (Gp2)', room: 'TR15' },
-  { date: '2026-11-09', start: '14:30', end: '17:30', code: 'PCP', title: 'PCP Recruitment (Group B of BPHM2133 Practical)', lecturer: 'TBC', room: 'TBC' },
-  { date: '2026-11-10', start: '09:00', end: '10:50', code: 'Lecture', title: 'Bronchitis + Debriefing (Class Test and PBL)', lecturer: 'Ms Louise Sin', room: 'HKJC-S3' },
-  { date: '2026-11-10', start: '11:00', end: '12:50', code: 'Lecture', title: 'Introduction to systems in HA', lecturer: 'Ms Louise Sin, Mr. Vincent Wong', room: 'HKJC-S3' },
-  { date: '2026-11-17', start: '09:00', end: '10:50', code: 'Lecture', title: 'Glaucoma', lecturer: 'Ms Louise Sin', room: 'SR3' },
-  { date: '2026-11-20', start: '14:30', end: '17:30', code: 'Ward Visit', title: 'Ward Visit', lecturer: 'Dr. Janice Tam; Ms. Eliza Tam; Ms. Louise Sin', room: 'SR4' },
-  { date: '2026-11-24', start: '15:00', end: '16:50', code: 'Lecture', title: 'TCM respiratory med: cough / sneezing / sputum / runny nose', lecturer: 'Dr. Fan Cheung', room: 'LE3' },
-  { date: '2026-11-27', start: '14:00', end: '15:50', code: 'Presentation', title: 'Ward Visit Presentation (Group 1 & 2)', lecturer: 'Dr. Ann Leung, Dr. Janice Tam', room: 'HKJC-S1A' },
-  { date: '2026-11-27', start: '16:00', end: '17:50', code: 'Lecture', title: 'Revision & Course Evaluation', lecturer: 'Ms. Louise Sin, Dr. Willmann Liang', room: 'HKJC-S1A' }
-];
-
-/* =========================================================
-   4. 共用規則
+   3. 共用規則
    ========================================================= */
 const CODE_RE = /^[A-Z]{2,4}\d{3}[A-Z]?[.,·]\d{3}$/;
 const MONTHS = {
@@ -692,15 +668,14 @@ function buildSessionFromCells(date, start, end, cells) {
     let t = String(raw || '').replace(/\s+/g, ' ').trim();
     if (!t) continue;
     if (WEEKDAY_PAREN_RE.test(t)) continue;
-    if (TIME_ONLY_RE.test(t)) continue;                 /* 殘留的時間不要進課名 */
-    if (/^[\s:：·•.,，、\/|-]+$/.test(t)) continue;      /* 純標點 */
+    if (TIME_ONLY_RE.test(t)) continue;
+    if (/^[\s:：·•.,，、\/|-]+$/.test(t)) continue;
     if (NAME_RE.test(t)) { names.push(t); continue; }
     if (/^(TBC|TBA|TBD)\.?$/i.test(t)) { rooms.push(t.replace(/\.$/, '').toUpperCase()); continue; }
     if (ROOM_RE.test(t) && /\d/.test(t) && t.length <= 14) { rooms.push(t); continue; }
     others.push(t);
   }
 
-  /* 去掉重複出現的字串（OCR 常把同一格讀兩次） */
   const uniq = [];
   others.forEach(t => { if (uniq.indexOf(t) < 0) uniq.push(t); });
 
@@ -708,8 +683,8 @@ function buildSessionFromCells(date, start, end, cells) {
   if (uniq.length && TYPE_WORDS.test(uniq[0])) type = uniq.shift();
 
   let title = uniq.join(' ')
-    .replace(/\s*:\s*([.．])\s*/g, ': ')      /* ": ." → ": " */
-    .replace(/\s*:\s*$/,'')
+    .replace(/\s*:\s*([.．])\s*/g, ': ')
+    .replace(/\s*:\s*$/, '')
     .replace(/^[\s:：·•.,，、\/|-]+/, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -718,7 +693,6 @@ function buildSessionFromCells(date, start, end, cells) {
   let teacher = names.join('; ');
   let venue = rooms[0] || '';
 
-  /* 只有一格時，用 regex 把老師名字撈出來 */
   if (!teacher && title) {
     const nm = title.match(/(?:Mr|Mrs|Ms|Miss|Dr|Prof)\.?\s+[A-Z][A-Za-z\-']+(?:\s+[A-Z][A-Za-z\-']+)*(?:\s*\([A-Za-z0-9]+\))?/g);
     if (nm) {
@@ -727,7 +701,6 @@ function buildSessionFromCells(date, start, end, cells) {
       title = title.replace(/\s+/g, ' ').trim();
     }
   }
-  /* 標題結尾若黏了房號，搬到地點 */
   if (!venue) {
     const tailRoom = /([A-Z]{2,5}[-–]?\d{1,3}[A-Z]?)$/.exec(title);
     if (tailRoom) { venue = tailRoom[1]; title = title.slice(0, title.length - tailRoom[1].length).trim(); }
@@ -738,7 +711,7 @@ function buildSessionFromCells(date, start, end, cells) {
   return mkCourse({ kind: 'event', date, start, end, code: type, title, lecturer: teacher, room: venue });
 }
 
-/* ---------- 4a. 週課表（List 檢視） ---------- */
+/* ---------- 3a. 週課表（List 檢視） ---------- */
 function tryAppendTitle(out, line) {
   if (!out.length) return;
   const toks = line.words.map(w => w.text);
@@ -799,7 +772,7 @@ function parseListLines(lines) {
   return out;
 }
 
-/* ---------- 4b. 日期式（座標＋橫列） ---------- */
+/* ---------- 3b. 日期式（座標＋橫列） ---------- */
 function splitByXGap(words, medH) {
   if (!words.length) return [];
   const sorted = words.slice().sort((a, b) => a.x - b.x);
@@ -870,7 +843,7 @@ function parseDatedWords(rows, words) {
   return dedupe(out);
 }
 
-/* ---------- 4c. 日期式：貼上文字 ---------- */
+/* ---------- 3c. 日期式：貼上文字 ---------- */
 function parseDatedText(text) {
   const src = String(text || '').replace(/\u00a0/g, ' ').replace(/\r\n?/g, '\n');
   const re = new RegExp(DATE_SRC, 'gi');
@@ -923,7 +896,7 @@ function dedupe(list) {
   return out;
 }
 
-/* ---------- 4d. 格子式週課表 ---------- */
+/* ---------- 3d. 格子式週課表 ---------- */
 function parseGridWords(words) {
   const heads = [];
   for (const w of words) {
@@ -979,7 +952,7 @@ function parseGridWords(words) {
   return out;
 }
 
-/* ---------- 4e. 週課表：純文字 ---------- */
+/* ---------- 3e. 週課表：純文字 ---------- */
 function parsePlainText(text) {
   const out = [];
   const DAY_RE = /\b(mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/i;
@@ -1015,7 +988,7 @@ function parsePlainText(text) {
 }
 
 /* =========================================================
-   5. 圖片 / PDF
+   4. 圖片 / PDF
    ========================================================= */
 function logLine(msg) {
   const el = $('#progLog');
@@ -1288,7 +1261,6 @@ function finishParse(courses) {
   const fitted = autofitSemester(dedup);
   if (fitted) logLine('已把學期範圍調整為 ' + state.semester.start + ' ～ ' + state.semester.end);
 
-  /* 若大部分日期已過去，自動關閉「只匯入今天以後」，避免匯出 0 筆 */
   const evs = dedup.filter(c => c.kind === 'event' && c.date);
   if (evs.length) {
     const past = evs.filter(c => c.date < todayYmd()).length;
@@ -1309,7 +1281,7 @@ function finishParse(courses) {
 }
 
 /* =========================================================
-   6. 日期推算
+   5. 日期推算
    ========================================================= */
 function anchorMonday() { return state.semester.start ? mondayOfYmd(state.semester.start) : ''; }
 function weeksCount() {
@@ -1380,7 +1352,7 @@ function effectiveDates(c) {
 }
 
 /* =========================================================
-   7. 香港公眾假期
+   6. 香港公眾假期
    ========================================================= */
 const HK_BUILTIN = {
   2026: [
@@ -1535,7 +1507,7 @@ function renderHolidays() {
 }
 
 /* =========================================================
-   8. 格子
+   7. 格子
    ========================================================= */
 const DAY_START = 8 * 60;
 const DAY_END = 23 * 60;
@@ -1603,7 +1575,7 @@ function renderGrid() {
 }
 
 /* =========================================================
-   9. 清單（純 CSS Grid，不用 table）
+   8. 清單（CSS Grid）
    ========================================================= */
 function sortKeyOf(c) {
   if (c.kind === 'event' && c.date) return c.date + '|' + pad2(c.start);
@@ -1675,7 +1647,7 @@ function applyView() {
 }
 
 /* =========================================================
-   10. 拖曳
+   9. 拖曳
    ========================================================= */
 let drag = null;
 function bindBlocks() {
@@ -1731,7 +1703,7 @@ function bindBlocks() {
 }
 
 /* =========================================================
-   11. 編輯
+   10. 編輯
    ========================================================= */
 function buildWeekOptions(current) {
   const maxW = Math.max(24, weeksCount() + 4);
@@ -1878,7 +1850,7 @@ function bindEditor() {
 }
 
 /* =========================================================
-   12. 學期
+   11. 學期
    ========================================================= */
 function renderSemesterInfo() {
   const a = anchorMonday();
@@ -1910,7 +1882,10 @@ function renderSemesterInfo() {
   const lateStart = state.courses.filter(c => c.kind !== 'event' && weekNoOf(firstDateOf(c)) > 1);
   if (lateStart.length) msgs.push('有 ' + lateStart.length + ' 門課不是從第 1 週開始。');
   if (state.settings.futureOnly) {
-    const allPast = state.courses.filter(c => effectiveDates(c).kept.length === 0 && effectiveDates(c).all.length).length;
+    const allPast = state.courses.filter(c => {
+      const r = effectiveDates(c);
+      return r.kept.length === 0 && r.all.length > 0;
+    }).length;
     if (allPast) msgs.push('有 ' + allPast + ' 項全部落在今天之前，因為「只匯入今天以後」而沒有行程。');
   }
 
@@ -1971,7 +1946,7 @@ function bindSemester() {
 }
 
 /* =========================================================
-   13. ICS
+   12. ICS
    ========================================================= */
 const TZ_INFO = {
   'Asia/Hong_Kong': ['+0800', 'HKT'], 'Asia/Taipei': ['+0800', 'CST'],
@@ -2081,14 +2056,14 @@ function buildICS() {
 }
 
 /* =========================================================
-   14. 匯出
+   13. 匯出
    ========================================================= */
 function renderOutput() {
   const anchor = anchorMonday();
   const box = $('#summary');
   if (!box) return;
   if (!state.courses.length) {
-    box.innerHTML = '<div class="srow"><span class="st">還沒有課程。回到第 2 區新增，或載入示範資料。</span></div>';
+    box.innerHTML = '<div class="srow"><span class="st">還沒有課程。回到第 1 區上傳課表，或在第 2 區用「＋ 新增課程」。</span></div>';
     setHTML('#importHint', ''); setHTML('#exportInfo', '');
     return;
   }
@@ -2166,7 +2141,7 @@ function markExported(ics) {
 }
 
 /* =========================================================
-   15. 列印
+   14. 列印
    ========================================================= */
 let printing = false;
 function doPrint() {
@@ -2194,7 +2169,7 @@ function doPrint() {
 }
 
 /* =========================================================
-   16. 初始化
+   15. 初始化
    ========================================================= */
 function renderPrintSub() {
   const a = anchorMonday(), w = weeksCount();
@@ -2244,31 +2219,6 @@ function bindTop() {
     if (!el) return;
     el.classList.toggle('hidden');
     if (!el.classList.contains('hidden') && !lastRawText) el.textContent = '（還沒有辨識內容）';
-  });
-
-  on('#btnDemo', 'click', () => {
-    state.courses = DEMO.map(d => mkCourse({
-      code: d.code, title: d.title, lecturer: d.lecturer, room: d.room,
-      day: d.day, start: minOf(d.start), end: minOf(d.end)
-    }));
-    state.selected = null; state.view = 'grid';
-    renderAll(); save();
-    showProg(true);
-    if ($('#progLog')) $('#progLog').textContent = '已載入週課表示例。';
-    const s2 = $('#step2'); if (s2) s2.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-
-  on('#btnDemoSession', 'click', () => {
-    state.courses = DEMO_SESSIONS.map(d => mkCourse({
-      kind: 'event', date: d.date, code: d.code, title: d.title,
-      lecturer: d.lecturer, room: d.room, start: minOf(d.start), end: minOf(d.end)
-    }));
-    state.selected = null; state.view = 'list';
-    autofitSemester(state.courses);
-    renderAll(); save();
-    showProg(true);
-    if ($('#progLog')) $('#progLog').textContent = '已載入日期式課表示例（9 堂）。';
-    const s2 = $('#step2'); if (s2) s2.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   on('#btnPaste', 'click', () => { const b = $('#pasteBox'); if (b) b.classList.toggle('hidden'); });
